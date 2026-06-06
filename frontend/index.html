@@ -449,7 +449,7 @@ function svg(name,extra){return `<svg class="ic ${extra||''}" viewBox="0 0 24 24
 function iconsInit(scope){(scope||document).querySelectorAll('[data-i]').forEach(el=>{el.innerHTML=svg(el.dataset.i);el.removeAttribute('data-i');});}
 
 // ===================== CONFIG =====================
-const GOOGLE_CLIENT_ID = "";  // paste your OAuth Client ID for real Google sign-in (see README)
+const GOOGLE_CLIENT_ID = "865845583147-8fogdtbl58h9s5977a8akbfbs02igr1u.apps.googleusercontent.com";  // paste your OAuth Client ID for real Google sign-in (see README)
 const BASE = location.protocol.startsWith("http") ? "" : "http://localhost:5050";
 const API = BASE + "/api/hackathons";
 const API_COMMUNITY = BASE + "/api/community";
