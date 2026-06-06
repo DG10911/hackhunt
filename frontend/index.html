@@ -852,6 +852,13 @@ function renderAuthState(){
   else a.style.display="none";
 }
 $("#avatarBtn").onclick=()=>switchTab("profile");
+// robust fallback: handle avatar + logout via delegation so they work even if
+// a direct handler failed to attach for any reason
+document.addEventListener("click",function(e){
+  if(e.target.closest("#avatarBtn")){e.preventDefault();switchTab("profile");}
+  if(e.target.closest("#logoutBtn")){e.preventDefault();
+    USER=null;persistUser();renderAuthState();showGate();setMode("login");}
+});
 
 // ===================== PROFILE =====================
 function renderProfile(){
