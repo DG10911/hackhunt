@@ -790,6 +790,8 @@ function switchTab(tab){
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
   $("#nav").classList.remove("open");
   const isList=["hackathons","community","saved","history"].includes(tab);
+  const hero=document.querySelector(".hero");
+  if(hero) hero.style.display = (tab==="hackathons") ? "" : "none";  // hero+stats only on main tab
   $("#controls").classList.toggle("hide",!isList);
   $("#resultHead").classList.toggle("hide",!isList);
   $("#grid").classList.toggle("hide",!isList);
