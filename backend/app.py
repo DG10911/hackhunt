@@ -33,6 +33,7 @@ except Exception:
     pass
 
 import scrapers
+import community_scrapers
 import db
 from sample_data import SAMPLE
 from community import get_community
@@ -234,16 +235,78 @@ def hackathons():
                         "error": str(e)[:160]}), 200
 
 
+# Community cache: merge curated + live-scraped + admin-added, refresh every 30 min
+_COMM = {"data": None, "ts": 0, "meta": []}
+_COMM_TTL = 60 * 30
+_COMM_REFRESHING = False
+
+
+def _merge_community():
+    """Curated list + live scrapers + owner-added events, de-duplicated."""
+    merged, meta = [], []
+    # 1) curated (always present, verified brands)
+    for c in get_community():
+        merged.append(c)
+    # 2) live scrapers (best-effort)
+    try:
+        scraped, meta = community_scrapers.fetch_all()
+        for s in scraped:
+            s.setdefault("verified", False)
+            s.setdefault("sample", False)
+            merged.append(s)
+    except Exception as e:
+        meta = [{"platform": "scrapers", "status": "error", "error": str(e)[:100]}]
+    # 3) owner-added events (highest trust, override duplicates by id)
+    try:
+        for a in db.list_community_events():
+            merged.append(a)
+    except Exception:
+        pass
+    # de-dupe by id, then by (title, starts)
+    seen, out = set(), []
+    for e in merged:
+        key = e.get("id") or (e.get("title"), e.get("starts"))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(e)
+    return out, meta
+
+
+def _refresh_community():
+    global _COMM_REFRESHING
+    try:
+        data, meta = _merge_community()
+        _COMM.update(data=data, meta=meta, ts=time.time())
+    except Exception as e:
+        print("[community] refresh error:", e)
+    finally:
+        _COMM_REFRESHING = False
+
+
+def get_community_merged(force=False):
+    global _COMM_REFRESHING
+    now = time.time()
+    fresh = _COMM["data"] is not None and (now - _COMM["ts"] <= _COMM_TTL)
+    if force or _COMM["data"] is None:
+        _refresh_community()
+    elif not fresh and not _COMM_REFRESHING:
+        _COMM_REFRESHING = True
+        threading.Thread(target=_refresh_community, daemon=True).start()
+    return _COMM["data"] or []
+
+
 @app.route("/api/community")
 def community():
     try:
-        allitems = [normalize(e) for e in get_community()]
+        raw = get_community_merged(force=request.args.get("refresh") == "1")
+        allitems = [normalize(e) for e in raw]
         try:
             db.archive(allitems, is_ended)
         except Exception:
             pass
         items = [e for e in allitems if not is_ended(e)]  # hide ended
-        return jsonify({"count": len(items), "events": items})
+        return jsonify({"count": len(items), "events": items, "meta": _COMM["meta"]})
     except Exception as e:
         return jsonify({"count": 0, "events": [], "error": str(e)[:160]}), 200
 
@@ -406,6 +469,32 @@ def owner_delete_user():
         return jsonify({"ok": False}), 401
     db.delete_user((request.get_json(force=True) or {}).get("email", ""))
     return jsonify({"ok": True, "users": db.all_users()})
+
+
+@app.route("/api/owner/community/add", methods=["POST"])
+def owner_community_add():
+    if not _is_owner():
+        return jsonify({"ok": False}), 401
+    rec = db.add_community_event(request.get_json(force=True) or {})
+    _refresh_community()  # reflect immediately
+    return jsonify({"ok": bool(rec), "event": rec,
+                    "events": db.list_community_events()})
+
+
+@app.route("/api/owner/community/delete", methods=["POST"])
+def owner_community_delete():
+    if not _is_owner():
+        return jsonify({"ok": False}), 401
+    db.delete_community_event((request.get_json(force=True) or {}).get("id", ""))
+    _refresh_community()
+    return jsonify({"ok": True, "events": db.list_community_events()})
+
+
+@app.route("/api/owner/community/list")
+def owner_community_list():
+    if not _is_owner():
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, "events": db.list_community_events()})
 
 
 @app.route("/api/owner/maintenance", methods=["POST"])
@@ -582,6 +671,10 @@ def _auto_refresher():
             _do_refresh()
         except Exception as e:
             print("[auto] refresh error:", e)
+        try:
+            _refresh_community()   # keep conferences/meetups fresh too
+        except Exception as e:
+            print("[auto] community refresh error:", e)
 
 
 def start_background():
@@ -592,6 +685,7 @@ def start_background():
     _BG_STARTED = True
     if not _CACHE["data"]:
         threading.Thread(target=_do_refresh, daemon=True).start()
+    threading.Thread(target=_refresh_community, daemon=True).start()
     threading.Thread(target=_auto_refresher, daemon=True).start()
 
 

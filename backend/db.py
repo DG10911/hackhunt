@@ -86,6 +86,8 @@ def init():
             kind TEXT, detail TEXT, path TEXT, action TEXT);
         CREATE TABLE IF NOT EXISTS strikes(
             ip TEXT PRIMARY KEY, count INTEGER DEFAULT 0, last REAL);
+        CREATE TABLE IF NOT EXISTS community_events(
+            id TEXT PRIMARY KEY, json TEXT, ts REAL);
         """)
         # migrations: add newer columns if missing (older DBs)
         for tbl, col in (("users", "skills TEXT"), ("users", "achievements TEXT"),
@@ -431,6 +433,61 @@ def auto_defend(ip="", email="", kind="attack", detail="", path=""):
     log_threat(ip=ip, email=email, kind=kind, detail=detail, path=path,
                action=",".join(actions) or "logged")
     return actions
+
+
+# ---------- admin-managed community events (owner dashboard CRUD) ----------
+def add_community_event(e):
+    """Add or update a community event from the owner dashboard. Sanitised."""
+    import hashlib
+    title = clean(e.get("title"), 140)
+    if not title:
+        return None
+    eid = clean(e.get("id"), 60) or "admin-" + hashlib.md5(
+        (title + str(e.get("starts", ""))).encode()).hexdigest()[:10]
+    rec = {
+        "id": eid,
+        "title": title,
+        "organizer": clean(e.get("organizer"), 100),
+        "type": clean(e.get("type"), 30) or "Conference",
+        "category": clean(e.get("type"), 30) or "Conference",
+        "platform": "Community",
+        "city": clean(e.get("city"), 60),
+        "mode": clean(e.get("mode"), 30) or "Offline",
+        "location": clean(e.get("location"), 120),
+        "starts": clean(e.get("starts"), 30),
+        "ends": clean(e.get("ends"), 30) or clean(e.get("starts"), 30),
+        "deadline": clean(e.get("deadline"), 30),
+        "price": clean(e.get("price"), 60) or "See site",
+        "ticket_url": clean(e.get("ticket_url"), 300),
+        "url": clean(e.get("url"), 300),
+        "tags": clean_list(e.get("tags"), 8, 30),
+        "themes": clean_list(e.get("themes"), 5, 30),
+        "image": e.get("image") if str(e.get("image", "")).startswith("http") else None,
+        "verified": True,
+        "dates_confirmed": bool(e.get("dates_confirmed", True)),
+        "admin": True,
+    }
+    with _LOCK, _conn() as c:
+        c.execute("INSERT OR REPLACE INTO community_events(id,json,ts) VALUES(?,?,?)",
+                  (eid, json.dumps(rec), time.time()))
+    return rec
+
+
+def list_community_events():
+    with _LOCK, _conn() as c:
+        out = []
+        for r in c.execute("SELECT json FROM community_events ORDER BY ts DESC"):
+            try:
+                out.append(json.loads(r["json"]))
+            except Exception:
+                pass
+        return out
+
+
+def delete_community_event(eid):
+    with _LOCK, _conn() as c:
+        c.execute("DELETE FROM community_events WHERE id=?", (clean(eid, 60),))
+    return True
 
 
 def wipe_all():

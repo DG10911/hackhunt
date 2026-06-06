@@ -113,6 +113,34 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
     </div>
 
     <div class="panel">
+      <h2>🎟️ Community events <span class="muted" style="font-size:.8rem">(add / edit conferences & meetups — appears live on the site)</span></h2>
+      <div class="controls" style="flex-wrap:wrap;gap:8px">
+        <input id="ce_title" placeholder="Event title *" style="min-width:220px">
+        <input id="ce_organizer" placeholder="Organizer" style="min-width:160px">
+        <select id="ce_type" style="min-width:130px">
+          <option>Conference</option><option>Meetup</option><option>Summit</option>
+          <option>Workshop</option><option>Webinar</option>
+        </select>
+        <input id="ce_city" placeholder="City" style="min-width:120px">
+        <select id="ce_mode" style="min-width:110px"><option>Offline</option><option>Online</option><option>Hybrid</option></select>
+      </div>
+      <div class="controls" style="flex-wrap:wrap;gap:8px;margin-top:8px">
+        <label class="muted" style="font-size:.75rem">Start <input id="ce_starts" type="date"></label>
+        <label class="muted" style="font-size:.75rem">End <input id="ce_ends" type="date"></label>
+        <label class="muted" style="font-size:.75rem">Deadline <input id="ce_deadline" type="date"></label>
+        <input id="ce_price" placeholder="Price (e.g. ₹999 / Free)" style="min-width:150px">
+      </div>
+      <div class="controls" style="flex-wrap:wrap;gap:8px;margin-top:8px">
+        <input id="ce_ticket" placeholder="Ticket URL (https://...)" style="min-width:240px">
+        <input id="ce_url" placeholder="Event site URL (https://...)" style="min-width:240px">
+        <input id="ce_tags" placeholder="Tags, comma separated" style="min-width:200px">
+        <button class="btn" id="ce_addBtn" style="background:#16a34a;color:#fff">+ Add event</button>
+      </div>
+      <p class="muted" id="ce_msg" style="font-size:.78rem;margin:8px 0 0"></p>
+      <div class="feed" id="ce_list" style="margin-top:12px"></div>
+    </div>
+
+    <div class="panel">
       <h2>🚨 Auto-defense threat log <span class="muted" style="font-size:.8rem">(attacks blocked automatically)</span></h2>
       <div class="feed" id="threatList"></div>
     </div>
@@ -150,7 +178,7 @@ async function login(u,p){
 $("#loginForm").onsubmit=e=>{e.preventDefault();login($("#ou").value.trim(),$("#op").value);};
 $("#logoutBtn").onclick=()=>{sessionStorage.removeItem("hh_owner_token");location.reload();};
 
-function showDash(){$("#loginView").classList.add("hide");$("#dashView").classList.remove("hide");poll();}
+function showDash(){$("#loginView").classList.add("hide");$("#dashView").classList.remove("hide");poll();loadCommunity();}
 
 async function poll(){
   if(!TOKEN)return;
@@ -222,7 +250,52 @@ async function blockIp(ip){
   await ownerPost("/api/owner/block-ip",{ip,reason:"manual"});poll();
 }
 async function unblockIp(ip){await ownerPost("/api/owner/unblock-ip",{ip});poll();}
-document.addEventListener("click",e=>{if(e.target.id==="manualBlockBtn"){const ip=$("#manualIp").value.trim();if(ip)blockIp(ip);}});
+
+// ---- community events admin ----
+async function loadCommunity(){
+  if(!TOKEN)return;
+  try{
+    const r=await fetch(BASE+"/api/owner/community/list",{headers:{"X-Owner-Token":TOKEN}});
+    const d=await r.json();renderCommunity(d.events||[]);
+  }catch(e){}
+}
+function renderCommunity(list){
+  const el=$("#ce_list");
+  el.innerHTML=list.length?list.map(e=>`<div class="row">
+    <span class="who">${esc(e.title)}</span>
+    <span class="meta">${esc(e.type||"")} · ${esc(e.city||"online")} · ${esc(e.starts||"TBA")}${e.ends&&e.ends!==e.starts?"→"+esc(e.ends):""}</span>
+    <span class="meta">${esc(e.price||"")}</span>
+    <button class="btn ghost" style="padding:4px 8px;font-size:.7rem" data-cedel="${esc(e.id)}">Delete</button></div>`).join(""):'<p class="muted">No owner-added events yet. (Curated + scraped events still show on the site.)</p>';
+  el.querySelectorAll("[data-cedel]").forEach(b=>b.onclick=()=>delCommunity(b.dataset.cedel));
+}
+async function addCommunity(){
+  const title=$("#ce_title").value.trim();
+  if(!title){$("#ce_msg").textContent="Title is required.";return;}
+  const body={
+    title, organizer:$("#ce_organizer").value.trim(), type:$("#ce_type").value,
+    city:$("#ce_city").value.trim(), mode:$("#ce_mode").value,
+    starts:$("#ce_starts").value, ends:$("#ce_ends").value, deadline:$("#ce_deadline").value,
+    price:$("#ce_price").value.trim(), ticket_url:$("#ce_ticket").value.trim(),
+    url:$("#ce_url").value.trim(),
+    tags:$("#ce_tags").value.split(",").map(s=>s.trim()).filter(Boolean),
+    dates_confirmed:true
+  };
+  const r=await ownerPost("/api/owner/community/add",body);const d=await r.json();
+  if(d.ok){
+    $("#ce_msg").textContent="✅ Added — it's live on the site now.";
+    ["ce_title","ce_organizer","ce_city","ce_price","ce_ticket","ce_url","ce_tags","ce_starts","ce_ends","ce_deadline"].forEach(id=>$("#"+id).value="");
+    renderCommunity(d.events||[]);
+  }else $("#ce_msg").textContent="Could not add event.";
+}
+async function delCommunity(id){
+  if(!confirm("Remove this community event from the site?"))return;
+  const r=await ownerPost("/api/owner/community/delete",{id});const d=await r.json();
+  renderCommunity(d.events||[]);
+}
+document.addEventListener("click",e=>{
+  if(e.target.id==="manualBlockBtn"){const ip=$("#manualIp").value.trim();if(ip)blockIp(ip);}
+  if(e.target.id==="ce_addBtn")addCommunity();
+});
 $("#maintBtn").onclick=async()=>{
   const on=$("#maintBtn").dataset.on!=="1";
   if(on&&!confirm("Take the WHOLE site down for all users?"))return;
