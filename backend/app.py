@@ -365,6 +365,7 @@ def owner_overview():
         "activity": db.recent_activity(),
         "users": db.all_users(),
         "blocked_ips": db.list_blocked_ips(),
+        "threats": db.recent_threats(),
         "stats": db.stats(),
         "maintenance": db.get_setting("maintenance", "0") == "1",
     })
@@ -424,21 +425,77 @@ def owner_wipe():
     return jsonify({"ok": True})
 
 
+def _request_payloads():
+    """Everything an attacker could inject: path, query values, JSON/form body."""
+    vals = [request.path, request.query_string.decode("utf-8", "ignore")]
+    try:
+        vals += [str(v) for v in request.args.values()]
+    except Exception:
+        pass
+    try:
+        if request.is_json:
+            j = request.get_json(silent=True) or {}
+            def walk(o):
+                if isinstance(o, dict):
+                    for v in o.values():
+                        walk(v)
+                elif isinstance(o, (list, tuple)):
+                    for v in o:
+                        walk(v)
+                else:
+                    vals.append(str(o))
+            walk(j)
+        elif request.form:
+            vals += [str(v) for v in request.form.values()]
+    except Exception:
+        pass
+    return vals
+
+
+def _current_email():
+    try:
+        if request.is_json:
+            return ((request.get_json(silent=True) or {}).get("email") or "").lower()
+    except Exception:
+        pass
+    return ""
+
+
 @app.before_request
 def _gate():
     p = request.path
+    ip = get_ip()
+    # 0) static + health are always allowed through scanning-free
     # 1) blocked IPs get nothing (except owner console so you can still manage)
     if not p.startswith("/api/owner"):
         try:
-            if db.is_ip_blocked(get_ip()):
+            if db.is_ip_blocked(ip):
                 return jsonify({"blocked": True, "message": "Access denied."}), 403
         except Exception:
             pass
-    # 2) rate-limit write APIs
+    # 2) AUTO-SCAN every request for injection/XSS/SQLi — instant auto-defend
+    if not p.startswith("/api/owner") and p != "/api/health":
+        try:
+            payloads = _request_payloads()
+            if db.looks_malicious(*payloads):
+                email = _current_email()
+                hit = next((s for s in payloads if db.looks_malicious(s)), "")
+                db.auto_defend(ip=ip, email=email, kind="injection",
+                               detail=hit, path=p)
+                return jsonify({"blocked": True,
+                                "message": "Malicious request blocked."}), 403
+        except Exception:
+            pass
+    # 3) rate-limit write APIs — repeated flooding escalates to an auto-block
     if request.method == "POST" and p.startswith("/api/") and not p.startswith("/api/owner"):
-        if not _rate_ok(get_ip()):
+        if not _rate_ok(ip):
+            strikes = db.record_strike(ip, 1)
+            if strikes >= 5:  # sustained flood => treat as attack
+                db.auto_defend(ip=ip, email=_current_email(), kind="flood",
+                               detail="rate-limit exceeded %d times" % strikes, path=p)
+                return jsonify({"blocked": True, "message": "Access denied."}), 403
             return jsonify({"error": "Too many requests, slow down."}), 429
-    # 3) maintenance freeze
+    # 4) maintenance freeze
     if p.startswith("/api/") and db.get_setting("maintenance", "0") == "1":
         allow = ("/api/owner", "/api/track", "/api/health")
         if not any(p.startswith(a) for a in allow):

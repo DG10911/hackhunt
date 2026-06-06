@@ -112,6 +112,11 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
       </div>
     </div>
 
+    <div class="panel">
+      <h2>🚨 Auto-defense threat log <span class="muted" style="font-size:.8rem">(attacks blocked automatically)</span></h2>
+      <div class="feed" id="threatList"></div>
+    </div>
+
     <div class="panel danger-zone">
       <h2>⚠️ Danger zone — site controls</h2>
       <div class="controls">
@@ -188,6 +193,13 @@ async function poll(){
       <span class="who">${esc(b.ip)}</span><span class="meta">${esc(b.reason||"")}</span>
       <button class="btn ghost" style="padding:4px 8px;font-size:.7rem" data-unblock="${esc(b.ip)}">Unblock</button></div>`).join(""):'<p class="muted">No blocked IPs.</p>';
     $("#blockedList").querySelectorAll("[data-unblock]").forEach(b=>b.onclick=()=>unblockIp(b.dataset.unblock));
+    // threat log (auto-defense)
+    $("#threatList").innerHTML=(d.threats||[]).length?d.threats.map(t=>`<div class="row">
+      <span class="pill" style="background:#7f1d1d;color:#fecaca">${esc(t.kind||"threat")}</span>
+      <span class="who">${esc(t.ip||"?")}</span>
+      <span class="meta">${esc((t.email||"anon"))} · ${esc((t.action||"logged"))}</span>
+      <span style="flex:1;min-width:0;color:#fca5a5;font-family:monospace;font-size:.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((t.detail||t.path||"").slice(0,70))}</span>
+      <span class="meta">${fmtTime(t.ts)}</span></div>`).join(""):'<p class="muted">No attacks detected. ✅ All clear.</p>';
     // maintenance button
     const m=$("#maintBtn");m.dataset.on=d.maintenance?"1":"0";
     m.textContent=d.maintenance?"🔴 Site is DOWN — bring it back":"🟢 Site is LIVE — take it down";

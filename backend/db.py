@@ -81,6 +81,11 @@ def init():
         CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
         CREATE TABLE IF NOT EXISTS blocked_ips(ip TEXT PRIMARY KEY, reason TEXT, ts REAL);
         CREATE TABLE IF NOT EXISTS banned_emails(email TEXT PRIMARY KEY, reason TEXT, ts REAL);
+        CREATE TABLE IF NOT EXISTS threats(
+            id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, ip TEXT, email TEXT,
+            kind TEXT, detail TEXT, path TEXT, action TEXT);
+        CREATE TABLE IF NOT EXISTS strikes(
+            ip TEXT PRIMARY KEY, count INTEGER DEFAULT 0, last REAL);
         """)
         # migrations: add newer columns if missing (older DBs)
         for tbl, col in (("users", "skills TEXT"), ("users", "achievements TEXT"),
@@ -365,6 +370,67 @@ def auto_ban_ip_for_email(email):
     if ip:
         block_ip(ip, "auto: payload/attack from this account")
     return ip
+
+
+# ---------- AUTO-DEFENSE: threat log, strikes, one-shot auto-ban ----------
+def log_threat(ip="", email="", kind="", detail="", path="", action=""):
+    """Record every detected threat / auto-action for the owner threat log."""
+    with _LOCK, _conn() as c:
+        c.execute("""INSERT INTO threats(ts,ip,email,kind,detail,path,action)
+                     VALUES(?,?,?,?,?,?,?)""",
+                  (time.time(), ip or "", (email or "").lower(), clean(kind, 30),
+                   clean(detail, 300), clean(path, 80), clean(action, 60)))
+        c.execute("DELETE FROM threats WHERE id < (SELECT MAX(id)-2000 FROM threats)")
+    return True
+
+
+def recent_threats(limit=120):
+    with _LOCK, _conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT ts,ip,email,kind,detail,path,action FROM threats ORDER BY id DESC LIMIT ?",
+            (limit,))]
+
+
+def record_strike(ip, n=1):
+    """Add suspicious-behaviour strikes to an IP; returns the running total."""
+    if not ip:
+        return 0
+    now = time.time()
+    with _LOCK, _conn() as c:
+        r = c.execute("SELECT count,last FROM strikes WHERE ip=?", (ip,)).fetchone()
+        # strikes decay: reset if the IP has been quiet for 10 min
+        base = r["count"] if (r and now - r["last"] < 600) else 0
+        total = base + n
+        c.execute("INSERT OR REPLACE INTO strikes(ip,count,last) VALUES(?,?,?)",
+                  (ip, total, now))
+    return total
+
+
+def clear_strikes(ip):
+    with _LOCK, _conn() as c:
+        c.execute("DELETE FROM strikes WHERE ip=?", (ip,))
+    return True
+
+
+def auto_defend(ip="", email="", kind="attack", detail="", path=""):
+    """One call to neutralise an attacker: block IP + ban account + log it.
+    Used by the request gate so no human action is needed."""
+    email = (email or "").strip().lower()
+    actions = []
+    if ip and not is_ip_blocked(ip):
+        block_ip(ip, "auto: " + (kind or "threat"))
+        actions.append("ip_blocked")
+    if email and "@" in email and not is_email_banned(email):
+        ban_user(email, "auto: " + (kind or "threat"))
+        actions.append("user_banned")
+    # also pin any other IPs this email has used
+    if email and "@" in email:
+        other = auto_ban_ip_for_email(email)
+        if other and other != ip:
+            actions.append("ip_blocked")
+    log_threat(ip=ip, email=email, kind=kind, detail=detail, path=path,
+               action=",".join(actions) or "logged")
+    return actions
 
 
 def wipe_all():
