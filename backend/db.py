@@ -83,7 +83,9 @@ def init():
         CREATE TABLE IF NOT EXISTS banned_emails(email TEXT PRIMARY KEY, reason TEXT, ts REAL);
         CREATE TABLE IF NOT EXISTS threats(
             id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, ip TEXT, email TEXT,
-            kind TEXT, detail TEXT, path TEXT, action TEXT);
+            kind TEXT, detail TEXT, path TEXT, action TEXT, severity TEXT, ua TEXT, country TEXT);
+        CREATE TABLE IF NOT EXISTS geo(
+            ip TEXT PRIMARY KEY, country TEXT, region TEXT, city TEXT, org TEXT, ts REAL);
         CREATE TABLE IF NOT EXISTS strikes(
             ip TEXT PRIMARY KEY, count INTEGER DEFAULT 0, last REAL);
         CREATE TABLE IF NOT EXISTS community_events(
@@ -92,7 +94,9 @@ def init():
         # migrations: add newer columns if missing (older DBs)
         for tbl, col in (("users", "skills TEXT"), ("users", "achievements TEXT"),
                          ("users", "github TEXT"), ("users", "linkedin TEXT"),
-                         ("analytics", "ip TEXT"), ("presence", "ip TEXT")):
+                         ("analytics", "ip TEXT"), ("presence", "ip TEXT"),
+                         ("threats", "severity TEXT"), ("threats", "ua TEXT"),
+                         ("threats", "country TEXT")):
             try:
                 c.execute(f"ALTER TABLE {tbl} ADD COLUMN {col}")
             except Exception:
@@ -246,26 +250,90 @@ def history(only_ended=True, limit=200):
         return [json.loads(r["json"]) for r in c.execute(q, (limit,))]
 
 
-# ---------- threat scanner ----------
-_THREAT = re.compile(
-    r"<script|</script|<iframe|<img|<svg|</|/>|javascript:|data:text/html|"
-    r"on\w+\s*=|document\.|window\.|this\.|\.remove\(|\.cookie|eval\(|fetch\(|"
-    r"innerhtml|alert\(|prompt\(|=>|[\"']\s*>|[\"']\s*\)\s*;|"
-    r"union\s+select|drop\s+table|insert\s+into|;--|/\*|\bor\s+1=1\b|0x[0-9a-f]{6,}",
-    re.IGNORECASE)
+# ---------- threat scanner (tiered, classifying) ----------
+# Each rule: (kind, severity, compiled-regex). Severity: critical|high|medium.
+_RULES = [
+    ("xss", "high", re.compile(
+        r"<script|</script|<iframe|<img|<svg|<object|<embed|</|/>|javascript:|"
+        r"data:text/html|vbscript:|on\w+\s*=|document\.|window\.|this\.|\.remove\(|"
+        r"\.cookie|eval\(|fetch\(|xmlhttprequest|innerhtml|alert\(|prompt\(|=>|"
+        r"[\"']\s*>|[\"']\s*\)\s*;", re.I)),
+    ("sqli", "critical", re.compile(
+        r"union\s+select|drop\s+table|insert\s+into|delete\s+from|update\s+\w+\s+set|"
+        r";\s*--|/\*.*\*/|\bor\s+1\s*=\s*1\b|\band\s+1\s*=\s*1\b|'\s*or\s*'|"
+        r"sleep\s*\(|benchmark\s*\(|waitfor\s+delay|information_schema|0x[0-9a-f]{6,}", re.I)),
+    ("path_traversal", "critical", re.compile(
+        r"\.\./|\.\.\\|%2e%2e|/etc/passwd|/etc/shadow|c:\\windows|/proc/self|"
+        r"\benv\b.*\bpath\b|\.git/|\.env\b|wp-config", re.I)),
+    ("cmdi", "critical", re.compile(
+        r";\s*(cat|ls|rm|wget|curl|bash|sh|nc|netcat|python|perl|chmod|kill)\b|"
+        r"\|\s*(bash|sh|nc|curl|wget)\b|`[^`]+`|\$\([^)]+\)|&&\s*(cat|rm|curl|wget)\b", re.I)),
+    ("ssrf", "high", re.compile(
+        r"169\.254\.169\.254|metadata\.google|localhost:\d|127\.0\.0\.1:\d|"
+        r"file://|gopher://|dict://", re.I)),
+    ("template_injection", "high", re.compile(
+        r"\{\{.*\}\}|\{%.*%\}|\$\{.*\}|<%.*%>", re.I)),
+    ("nosql", "high", re.compile(
+        r"\$where\b|\$ne\b|\$gt\b|\$regex\b|\$exists\b", re.I)),
+]
+# Scanner / attack-tool user agents — block on sight.
+_BAD_UA = re.compile(
+    r"sqlmap|nikto|nmap|masscan|acunetix|nessus|metasploit|hydra|dirbuster|"
+    r"gobuster|wpscan|havij|fimap|netsparker|w3af|zgrab|ffuf|httrack", re.I)
+# Suspicious probe paths — bots hunting for secrets/admin panels.
+_BAD_PATH = re.compile(
+    r"/\.env|/\.git|/wp-login|/wp-admin|/xmlrpc\.php|/phpmyadmin|/\.aws|"
+    r"/config\.|/\.ssh|/admin\.php|/shell|/\.svn|/server-status|/actuator|"
+    r"/\.well-known/.*\.php|/vendor/|/cgi-bin/", re.I)
+
+
+def classify_threat(text):
+    """Return (kind, severity) for the first rule that matches, else (None, None)."""
+    s = str(text or "")
+    for kind, sev, rx in _RULES:
+        if rx.search(s):
+            return kind, sev
+    return None, None
 
 
 def looks_malicious(*vals):
-    """True if any value looks like an XSS/SQLi/script-injection payload."""
+    """True if any value looks like an injection payload (any rule)."""
     for v in vals:
         if v is None:
             continue
         if isinstance(v, (list, tuple)):
             if looks_malicious(*v):
                 return True
-        elif _THREAT.search(str(v)):
-            return True
+        else:
+            k, _ = classify_threat(v)
+            if k:
+                return True
     return False
+
+
+def scan_values(vals):
+    """Return (kind, severity, sample_hit) for the worst match across values."""
+    worst = (None, None, "")
+    order = {"critical": 3, "high": 2, "medium": 1}
+    for v in vals:
+        if v is None:
+            continue
+        if isinstance(v, (list, tuple)):
+            k, s, hit = scan_values(v)
+        else:
+            k, s = classify_threat(v)
+            hit = str(v)[:200] if k else ""
+        if k and order.get(s, 0) > order.get(worst[1], 0):
+            worst = (k, s, hit)
+    return worst
+
+
+def is_bad_ua(ua):
+    return bool(_BAD_UA.search(str(ua or "")))
+
+
+def is_bad_path(path):
+    return bool(_BAD_PATH.search(str(path or "")))
 
 
 # ---------- analytics / presence (owner dashboard) ----------
@@ -375,22 +443,40 @@ def auto_ban_ip_for_email(email):
 
 
 # ---------- AUTO-DEFENSE: threat log, strikes, one-shot auto-ban ----------
-def log_threat(ip="", email="", kind="", detail="", path="", action=""):
+def log_threat(ip="", email="", kind="", detail="", path="", action="",
+               severity="", ua="", country=""):
     """Record every detected threat / auto-action for the owner threat log."""
     with _LOCK, _conn() as c:
-        c.execute("""INSERT INTO threats(ts,ip,email,kind,detail,path,action)
-                     VALUES(?,?,?,?,?,?,?)""",
+        c.execute("""INSERT INTO threats(ts,ip,email,kind,detail,path,action,severity,ua,country)
+                     VALUES(?,?,?,?,?,?,?,?,?,?)""",
                   (time.time(), ip or "", (email or "").lower(), clean(kind, 30),
-                   clean(detail, 300), clean(path, 80), clean(action, 60)))
+                   clean(detail, 300), clean(path, 80), clean(action, 60),
+                   clean(severity, 12), clean(ua, 120), clean(country, 60)))
         c.execute("DELETE FROM threats WHERE id < (SELECT MAX(id)-2000 FROM threats)")
     return True
 
 
-def recent_threats(limit=120):
+def recent_threats(limit=150):
     with _LOCK, _conn() as c:
         return [dict(r) for r in c.execute(
-            "SELECT ts,ip,email,kind,detail,path,action FROM threats ORDER BY id DESC LIMIT ?",
-            (limit,))]
+            "SELECT ts,ip,email,kind,detail,path,action,severity,ua,country "
+            "FROM threats ORDER BY id DESC LIMIT ?", (limit,))]
+
+
+def threat_stats():
+    """Aggregate counts for the owner security dashboard."""
+    day = time.time() - 86400
+    with _LOCK, _conn() as c:
+        total = c.execute("SELECT COUNT(*) n FROM threats").fetchone()["n"]
+        today = c.execute("SELECT COUNT(*) n FROM threats WHERE ts>=?", (day,)).fetchone()["n"]
+        blocked = c.execute("SELECT COUNT(*) n FROM blocked_ips").fetchone()["n"]
+        banned = c.execute("SELECT COUNT(*) n FROM banned_emails").fetchone()["n"]
+        by_kind = {r["kind"]: r["n"] for r in c.execute(
+            "SELECT kind,COUNT(*) n FROM threats GROUP BY kind ORDER BY n DESC")}
+        by_sev = {r["severity"] or "?": r["n"] for r in c.execute(
+            "SELECT severity,COUNT(*) n FROM threats GROUP BY severity")}
+    return {"total": total, "today": today, "blocked_ips": blocked,
+            "banned_users": banned, "by_kind": by_kind, "by_severity": by_sev}
 
 
 def record_strike(ip, n=1):
@@ -414,25 +500,73 @@ def clear_strikes(ip):
     return True
 
 
-def auto_defend(ip="", email="", kind="attack", detail="", path=""):
+def auto_defend(ip="", email="", kind="attack", detail="", path="",
+                severity="high", ua="", country=""):
     """One call to neutralise an attacker: block IP + ban account + log it.
     Used by the request gate so no human action is needed."""
     email = (email or "").strip().lower()
     actions = []
     if ip and not is_ip_blocked(ip):
-        block_ip(ip, "auto: " + (kind or "threat"))
+        block_ip(ip, "auto: %s (%s)" % (kind or "threat", severity))
         actions.append("ip_blocked")
     if email and "@" in email and not is_email_banned(email):
         ban_user(email, "auto: " + (kind or "threat"))
         actions.append("user_banned")
-    # also pin any other IPs this email has used
     if email and "@" in email:
         other = auto_ban_ip_for_email(email)
         if other and other != ip:
             actions.append("ip_blocked")
     log_threat(ip=ip, email=email, kind=kind, detail=detail, path=path,
-               action=",".join(actions) or "logged")
+               action=",".join(actions) or "logged", severity=severity,
+               ua=ua, country=country)
     return actions
+
+
+# ---------- geo / IP intelligence (best-effort, cached) ----------
+def geo_get(ip):
+    """Return cached geo for an IP, or {} if unknown (no network here)."""
+    if not ip:
+        return {}
+    with _LOCK, _conn() as c:
+        r = c.execute("SELECT country,region,city,org FROM geo WHERE ip=?", (ip,)).fetchone()
+        return dict(r) if r else {}
+
+
+def geo_put(ip, country="", region="", city="", org=""):
+    if not ip:
+        return False
+    with _LOCK, _conn() as c:
+        c.execute("INSERT OR REPLACE INTO geo(ip,country,region,city,org,ts) VALUES(?,?,?,?,?,?)",
+                  (ip, clean(country, 60), clean(region, 60), clean(city, 60),
+                   clean(org, 120), time.time()))
+    return True
+
+
+def geo_lookup(ip):
+    """Resolve IP -> location via a free API, cached. Safe: returns {} on failure
+    (e.g. no network). Called in the background so it never blocks a request."""
+    if not ip:
+        return {}
+    cached = geo_get(ip)
+    if cached:
+        return cached
+    low = ip.lower()
+    if low.startswith(("10.", "192.168.", "127.", "172.", "169.254.", "::1", "fc", "fd")) \
+            or low in ("localhost", "unknown"):
+        geo_put(ip, country="Local/Private")
+        return geo_get(ip)
+    try:
+        import urllib.request
+        url = ("http://ip-api.com/json/%s?fields=status,country,regionName,city,isp,org"
+               % ip)
+        with urllib.request.urlopen(url, timeout=4) as resp:
+            d = json.loads(resp.read().decode("utf-8", "ignore"))
+        if d.get("status") == "success":
+            geo_put(ip, country=d.get("country", ""), region=d.get("regionName", ""),
+                    city=d.get("city", ""), org=d.get("org") or d.get("isp", ""))
+    except Exception:
+        pass
+    return geo_get(ip)
 
 
 # ---------- admin-managed community events (owner dashboard CRUD) ----------

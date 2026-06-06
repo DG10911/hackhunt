@@ -44,11 +44,51 @@ CORS(app)
 
 
 def get_ip():
-    """Real client IP (Railway/Render put it in X-Forwarded-For)."""
+    """Real client IP across proxies/CDNs.
+    Order: Cloudflare -> common real-IP headers -> X-Forwarded-For (first hop)
+    -> remote_addr. Ignores private/loopback hops so the *public* IP wins."""
+    def _public(ip):
+        ip = (ip or "").strip()
+        if not ip:
+            return ""
+        low = ip.lower()
+        if (low.startswith(("10.", "192.168.", "127.", "169.254.", "::1", "fc", "fd"))
+                or low in ("localhost", "unknown")):
+            return ""
+        if low.startswith("172."):
+            try:
+                if 16 <= int(ip.split(".")[1]) <= 31:
+                    return ""
+            except Exception:
+                pass
+        return ip
+
+    for h in ("CF-Connecting-IP", "True-Client-IP", "X-Real-IP", "Fly-Client-IP"):
+        v = _public(request.headers.get(h, ""))
+        if v:
+            return v
     xff = request.headers.get("X-Forwarded-For", "")
     if xff:
-        return xff.split(",")[0].strip()
+        for part in xff.split(","):          # left-most public address
+            v = _public(part)
+            if v:
+                return v
+        return xff.split(",")[0].strip()      # fall back to first hop
     return request.remote_addr or ""
+
+
+_GEO_SEEN = set()
+
+
+def _geo_async(ip):
+    """Resolve an IP's location in the background (cached, never blocks)."""
+    if not ip or ip in _GEO_SEEN:
+        return
+    _GEO_SEEN.add(ip)
+    try:
+        threading.Thread(target=db.geo_lookup, args=(ip,), daemon=True).start()
+    except Exception:
+        pass
 
 
 # simple in-memory rate limiter for write endpoints (per IP)
@@ -70,6 +110,8 @@ def _security_headers(resp):
     resp.headers["X-Frame-Options"] = "SAMEORIGIN"
     resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     resp.headers["X-XSS-Protection"] = "1; mode=block"
+    resp.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return resp
 
 TTL = 60 * 30  # 30 min
@@ -422,15 +464,41 @@ def owner_login():
 def owner_overview():
     if not _is_owner():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
+    live = db.live_users()
+    for u in live:                         # attach cached geo + warm new IPs
+        u["geo"] = db.geo_get(u.get("ip", ""))
+        _geo_async(u.get("ip", ""))
+    blocked = db.list_blocked_ips()
+    for b in blocked:
+        b["geo"] = db.geo_get(b.get("ip", ""))
+    threats = db.recent_threats()
+    for t in threats:
+        if not t.get("country"):
+            g = db.geo_get(t.get("ip", ""))
+            t["country"] = g.get("country", "") if g else ""
     return jsonify({
         "ok": True,
-        "live": db.live_users(),
+        "live": live,
         "activity": db.recent_activity(),
         "users": db.all_users(),
-        "blocked_ips": db.list_blocked_ips(),
-        "threats": db.recent_threats(),
+        "blocked_ips": blocked,
+        "threats": threats,
+        "threat_stats": db.threat_stats(),
         "stats": db.stats(),
         "maintenance": db.get_setting("maintenance", "0") == "1",
+    })
+
+
+@app.route("/api/security")
+def security_status():
+    """Public, lightweight: confirms the protection layer is active.
+    Powers the green 'Protected' badge in the app. Reveals nothing sensitive."""
+    return jsonify({
+        "protected": True,
+        "engine": "HackHunt Shield",
+        "features": ["injection-scan", "auto-ban", "ip-block", "rate-limit",
+                     "scanner-detect", "secure-headers"],
+        "version": 2,
     })
 
 
@@ -554,34 +622,47 @@ def _current_email():
 def _gate():
     p = request.path
     ip = get_ip()
-    # 0) static + health are always allowed through scanning-free
+    ua = request.headers.get("User-Agent", "")
+    owner_path = p.startswith("/api/owner")
     # 1) blocked IPs get nothing (except owner console so you can still manage)
-    if not p.startswith("/api/owner"):
+    if not owner_path:
         try:
             if db.is_ip_blocked(ip):
                 return jsonify({"blocked": True, "message": "Access denied."}), 403
         except Exception:
             pass
-    # 2) AUTO-SCAN every request for injection/XSS/SQLi — instant auto-defend
-    if not p.startswith("/api/owner") and p != "/api/health":
+    # 2) scanner/attack-tool user agents -> instant ban
+    if not owner_path and db.is_bad_ua(ua):
+        db.auto_defend(ip=ip, email="", kind="scanner_tool",
+                       detail="UA: " + ua[:120], path=p, severity="critical", ua=ua)
+        _geo_async(ip)
+        return jsonify({"blocked": True, "message": "Access denied."}), 403
+    # 3) probing for secret/admin paths (/.env, /wp-login, /.git ...) -> ban
+    if not owner_path and db.is_bad_path(p):
+        db.auto_defend(ip=ip, email="", kind="path_probe",
+                       detail="probe: " + p[:120], path=p, severity="high", ua=ua)
+        _geo_async(ip)
+        return jsonify({"blocked": True, "message": "Access denied."}), 403
+    # 4) AUTO-SCAN every request body/query for injection -> instant auto-defend
+    if not owner_path and p != "/api/health":
         try:
-            payloads = _request_payloads()
-            if db.looks_malicious(*payloads):
-                email = _current_email()
-                hit = next((s for s in payloads if db.looks_malicious(s)), "")
-                db.auto_defend(ip=ip, email=email, kind="injection",
-                               detail=hit, path=p)
+            kind, sev, hit = db.scan_values(_request_payloads())
+            if kind:
+                db.auto_defend(ip=ip, email=_current_email(), kind=kind,
+                               detail=hit, path=p, severity=sev or "high", ua=ua)
+                _geo_async(ip)
                 return jsonify({"blocked": True,
                                 "message": "Malicious request blocked."}), 403
         except Exception:
             pass
-    # 3) rate-limit write APIs — repeated flooding escalates to an auto-block
-    if request.method == "POST" and p.startswith("/api/") and not p.startswith("/api/owner"):
+    # 5) rate-limit write APIs — repeated flooding escalates to an auto-block
+    if request.method == "POST" and p.startswith("/api/") and not owner_path:
         if not _rate_ok(ip):
             strikes = db.record_strike(ip, 1)
             if strikes >= 5:  # sustained flood => treat as attack
                 db.auto_defend(ip=ip, email=_current_email(), kind="flood",
-                               detail="rate-limit exceeded %d times" % strikes, path=p)
+                               detail="rate-limit exceeded %d times" % strikes,
+                               path=p, severity="medium", ua=ua)
                 return jsonify({"blocked": True, "message": "Access denied."}), 403
             return jsonify({"error": "Too many requests, slow down."}), 429
     # 4) maintenance freeze

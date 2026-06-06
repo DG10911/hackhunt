@@ -84,6 +84,13 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
       <div class="kpi"><b id="k-saves">0</b><span>Saves</span></div>
       <div class="kpi"><b id="k-events">0</b><span>Events archived</span></div>
     </div>
+    <div class="kpis" style="margin-top:10px">
+      <div class="kpi" style="border-color:rgba(127,29,29,.5)"><b id="k-threats" style="color:#fca5a5">0</b><span>Attacks blocked (total)</span></div>
+      <div class="kpi" style="border-color:rgba(127,29,29,.5)"><b id="k-threats-today" style="color:#fca5a5">0</b><span>Attacks today</span></div>
+      <div class="kpi"><b id="k-blocked">0</b><span>Blocked IPs</span></div>
+      <div class="kpi"><b id="k-banned">0</b><span>Banned users</span></div>
+    </div>
+    <p class="muted" id="threatBreakdown" style="font-size:.8rem;margin:6px 2px 0"></p>
 
     <div class="grid2">
       <div class="panel">
@@ -190,14 +197,23 @@ async function poll(){
     $("#k-users").textContent=d.stats.users;
     $("#k-saves").textContent=d.stats.saves;
     $("#k-events").textContent=d.stats.events_archived;
+    // security summary cards
+    const ts=d.threat_stats||{};
+    $("#k-threats").textContent=ts.total||0;
+    $("#k-threats-today").textContent=ts.today||0;
+    $("#k-blocked").textContent=ts.blocked_ips||0;
+    $("#k-banned").textContent=ts.banned_users||0;
+    const bk=ts.by_kind||{};const parts=Object.keys(bk).map(k=>`${esc(k)}: ${bk[k]}`);
+    $("#threatBreakdown").textContent=parts.length?("Attack types — "+parts.join(" · ")):"No attacks detected yet. ✅";
     $("#liveCount").textContent="("+d.live.length+")";
     $("#updated").textContent="updated "+new Date().toLocaleTimeString();
     // live
-    $("#liveList").innerHTML=d.live.length?d.live.map(u=>`<div class="row">
+    $("#liveList").innerHTML=d.live.length?d.live.map(u=>{const g=u.geo||{};const loc=[g.city,g.country].filter(Boolean).join(", ");
+      return `<div class="row">
       <span class="who">${esc(u.name||"Guest")}</span>
       <span class="pill presence">${esc(u.path||"—")}</span>
-      <span class="meta">${esc(u.email||"anon")} · ${esc(u.ip||"?")} · ${ago(u.last_seen)} ago</span>
-      ${u.ip?`<button class="btn danger" style="padding:4px 8px;font-size:.7rem" data-blockip="${esc(u.ip)}">Block IP</button>`:""}</div>`).join(""):'<p class="muted">No one online right now.</p>';
+      <span class="meta">${esc(u.email||"anon")} · ${esc(u.ip||"?")}${loc?" · 📍"+esc(loc):""} · ${ago(u.last_seen)} ago</span>
+      ${u.ip?`<button class="btn danger" style="padding:4px 8px;font-size:.7rem" data-blockip="${esc(u.ip)}">Block IP</button>`:""}</div>`;}).join(""):'<p class="muted">No one online right now.</p>';
     // activity
     $("#activityList").innerHTML=d.activity.length?d.activity.map(a=>`<div class="row">
       <span class="pill ${esc((a.kind||"").replace(/[^a-z]/gi,""))}">${esc(a.kind)}</span>
@@ -217,17 +233,21 @@ async function poll(){
     $("#usersTbl").querySelectorAll("[data-ban]").forEach(b=>b.onclick=()=>banUser(b.dataset.ban));
     $("#liveList").querySelectorAll("[data-blockip]").forEach(b=>b.onclick=()=>blockIp(b.dataset.blockip));
     // blocked IPs
-    $("#blockedList").innerHTML=(d.blocked_ips||[]).length?d.blocked_ips.map(b=>`<div class="row">
-      <span class="who">${esc(b.ip)}</span><span class="meta">${esc(b.reason||"")}</span>
-      <button class="btn ghost" style="padding:4px 8px;font-size:.7rem" data-unblock="${esc(b.ip)}">Unblock</button></div>`).join(""):'<p class="muted">No blocked IPs.</p>';
+    $("#blockedList").innerHTML=(d.blocked_ips||[]).length?d.blocked_ips.map(b=>{const g=b.geo||{};const loc=[g.city,g.country].filter(Boolean).join(", ");
+      return `<div class="row">
+      <span class="who">${esc(b.ip)}</span><span class="meta">${esc(b.reason||"")}${loc?" · 📍"+esc(loc):""}</span>
+      <button class="btn ghost" style="padding:4px 8px;font-size:.7rem" data-unblock="${esc(b.ip)}">Unblock</button></div>`;}).join(""):'<p class="muted">No blocked IPs.</p>';
     $("#blockedList").querySelectorAll("[data-unblock]").forEach(b=>b.onclick=()=>unblockIp(b.dataset.unblock));
-    // threat log (auto-defense)
-    $("#threatList").innerHTML=(d.threats||[]).length?d.threats.map(t=>`<div class="row">
-      <span class="pill" style="background:#7f1d1d;color:#fecaca">${esc(t.kind||"threat")}</span>
+    // threat log (auto-defense) with severity colours
+    const sevColor={critical:["#7f1d1d","#fecaca"],high:["#9a3412","#fed7aa"],medium:["#854d0e","#fde68a"]};
+    $("#threatList").innerHTML=(d.threats||[]).length?d.threats.map(t=>{const c=sevColor[t.severity]||["#374151","#e5e7eb"];
+      return `<div class="row">
+      <span class="pill" style="background:${c[0]};color:${c[1]}">${esc(t.severity||"?")}</span>
+      <span class="pill" style="background:#1f2937;color:#cbd5e1">${esc(t.kind||"threat")}</span>
       <span class="who">${esc(t.ip||"?")}</span>
-      <span class="meta">${esc((t.email||"anon"))} · ${esc((t.action||"logged"))}</span>
+      <span class="meta">${esc((t.email||"anon"))}${t.country?" · 📍"+esc(t.country):""} · ${esc((t.action||"logged"))}</span>
       <span style="flex:1;min-width:0;color:#fca5a5;font-family:monospace;font-size:.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((t.detail||t.path||"").slice(0,70))}</span>
-      <span class="meta">${fmtTime(t.ts)}</span></div>`).join(""):'<p class="muted">No attacks detected. ✅ All clear.</p>';
+      <span class="meta">${fmtTime(t.ts)}</span></div>`;}).join(""):'<p class="muted">No attacks detected. ✅ All clear.</p>';
     // maintenance button
     const m=$("#maintBtn");m.dataset.on=d.maintenance?"1":"0";
     m.textContent=d.maintenance?"🔴 Site is DOWN — bring it back":"🟢 Site is LIVE — take it down";

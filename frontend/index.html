@@ -70,6 +70,17 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
 .btn:active{transform:scale(.97)}
 .avatar{width:40px;height:40px;border-radius:50%;border:2px solid var(--accent);cursor:pointer;background-size:cover;
   background-position:center;display:grid;place-items:center;color:#fff;font-weight:700;font-family:Sora;font-size:.95rem;flex:none}
+.shield{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;
+  font-size:.72rem;font-weight:700;letter-spacing:.2px;white-space:nowrap;flex:none;
+  color:#16a34a;background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.35)}
+.shield::before{content:"";width:7px;height:7px;border-radius:50%;background:#16a34a;
+  box-shadow:0 0 0 0 rgba(22,163,74,.6);animation:shieldPulse 2s infinite}
+.shield svg{color:#16a34a}
+.shield.off{color:#9ca3af;background:rgba(120,120,120,.1);border-color:rgba(120,120,120,.3)}
+.shield.off::before{background:#9ca3af;animation:none}
+.shield.off svg{color:#9ca3af}
+@keyframes shieldPulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 6px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+@media(max-width:720px){.shield .shield-txt{display:none}.shield{padding:6px}}
 
 /* mobile nav drawer */
 .menu-toggle{display:none}
@@ -275,6 +286,9 @@ footer{text-align:center;color:var(--faint);padding:30px;font-size:.8rem;border-
       <button class="nav-btn" data-tab="resources"><span data-i="book"></span>Resources</button>
     </nav>
     <div class="spacer"></div>
+    <span class="shield" id="shield" title="This site is actively protected: live attack scanning, auto-ban & encryption">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span class="shield-txt">Protected</span></span>
     <button class="iconbtn" id="refreshBtn" title="Refresh" data-i="refresh"></button>
     <button class="iconbtn" id="themeBtn" title="Theme" data-i="moon"></button>
     <button class="avatar" id="avatarBtn" title="Profile" style="display:none"></button>
@@ -930,6 +944,21 @@ async function checkMaintenance(){
     }}catch(e){}
 }
 checkMaintenance();
+
+// verify the protection layer is live -> drives the green "Protected" badge
+async function verifyProtection(){
+  const el=$("#shield");if(!el)return;
+  try{
+    const d=await (await fetch(BASE+"/api/security",{cache:"no-store"})).json();
+    if(d&&d.protected){
+      el.classList.remove("off");
+      el.querySelector(".shield-txt").textContent="Protected";
+      el.title="Protected by "+(d.engine||"HackHunt Shield")+": "+(d.features||[]).join(", ");
+    }else{el.classList.add("off");el.querySelector(".shield-txt").textContent="Unverified";}
+  }catch(e){el.classList.add("off");el.querySelector(".shield-txt").textContent="Offline";}
+}
+verifyProtection();
+setInterval(verifyProtection,60000);
 
 // ===================== DEMO DATA =====================
 const DEMO=[
