@@ -37,7 +37,8 @@ import db
 from sample_data import SAMPLE
 from community import get_community
 
-app = Flask(__name__, static_folder="../frontend", static_url_path="")
+FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
 CORS(app)
 
 TTL = 60 * 30  # 30 min
