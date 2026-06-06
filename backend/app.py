@@ -631,6 +631,20 @@ def _gate():
                 return jsonify({"blocked": True, "message": "Access denied."}), 403
         except Exception:
             pass
+    # 1b) banned accounts get nothing — even on a new/rotating IP. Their current
+    #     IP is auto-blocked too, so mobile IP-hopping gets shut down progressively.
+    if not owner_path:
+        try:
+            em = _current_email()
+            if em and db.is_email_banned(em):
+                if ip and not db.is_ip_blocked(ip):
+                    db.block_ip(ip, "auto: banned account on new IP")
+                    db.log_threat(ip=ip, email=em, kind="banned_evasion",
+                                  detail="banned account seen on new IP", path=p,
+                                  action="ip_blocked", severity="medium", ua=ua)
+                return jsonify({"blocked": True, "message": "Access denied."}), 403
+        except Exception:
+            pass
     # 2) scanner/attack-tool user agents -> instant ban
     if not owner_path and db.is_bad_ua(ua):
         db.auto_defend(ip=ip, email="", kind="scanner_tool",
