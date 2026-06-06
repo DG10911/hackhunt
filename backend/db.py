@@ -12,9 +12,29 @@ A single file `hackhunt.db` is created next to this module.
 
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
+
+_TAG_RE = re.compile(r"<[^>]*>")
+
+
+def clean(s, maxlen=200):
+    """Strip HTML tags & control chars from any user-supplied text, cap length."""
+    if s is None:
+        return ""
+    s = _TAG_RE.sub("", str(s))
+    s = s.replace("<", "").replace(">", "")
+    s = "".join(ch for ch in s if ch == "\n" or ord(ch) >= 32)
+    return s.strip()[:maxlen]
+
+
+def clean_list(arr, maxitems=15, maxlen=40):
+    if not isinstance(arr, list):
+        return []
+    out = [clean(x, maxlen) for x in arr[:maxitems]]
+    return [x for x in out if x]  # drop blanks left after stripping
 
 # Persist data on a disk that survives restarts when hosted.
 # Set HH_DATA_DIR (e.g. Render disk mount /var/data) in production.
@@ -59,11 +79,15 @@ def init():
         CREATE TABLE IF NOT EXISTS presence(
             sid TEXT PRIMARY KEY, email TEXT, name TEXT, path TEXT, last_seen REAL);
         CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE IF NOT EXISTS blocked_ips(ip TEXT PRIMARY KEY, reason TEXT, ts REAL);
+        CREATE TABLE IF NOT EXISTS banned_emails(email TEXT PRIMARY KEY, reason TEXT, ts REAL);
         """)
-        # migrations: add newer profile columns if missing (older DBs)
-        for col in ("skills TEXT", "achievements TEXT", "github TEXT", "linkedin TEXT"):
+        # migrations: add newer columns if missing (older DBs)
+        for tbl, col in (("users", "skills TEXT"), ("users", "achievements TEXT"),
+                         ("users", "github TEXT"), ("users", "linkedin TEXT"),
+                         ("analytics", "ip TEXT"), ("presence", "ip TEXT")):
             try:
-                c.execute(f"ALTER TABLE users ADD COLUMN {col}")
+                c.execute(f"ALTER TABLE {tbl} ADD COLUMN {col}")
             except Exception:
                 pass
 
@@ -74,20 +98,26 @@ def upsert_user(u):
     email = (u.get("email") or "").strip().lower() or ("guest_" + str(int(now)))
     with _LOCK, _conn() as c:
         row = c.execute("SELECT email FROM users WHERE email=?", (email,)).fetchone()
-        interests = json.dumps(u.get("interests") or [])
-        skills = json.dumps(u.get("skills") or [])
-        ach = json.dumps(u.get("achievements") or [])
+        # sanitize everything the user controls
+        name = clean(u.get("name"), 80) or "Student"
+        picture = u.get("picture", "")
+        picture = picture if str(picture).startswith("http") else ""  # only real image URLs
+        college = clean(u.get("college"), 80)
+        year = clean(u.get("year"), 40)
+        github = clean(u.get("github"), 120)
+        linkedin = clean(u.get("linkedin"), 120)
+        interests = json.dumps(clean_list(u.get("interests"), 20, 30))
+        skills = json.dumps(clean_list(u.get("skills"), 25, 30))
+        ach = json.dumps(clean_list(u.get("achievements"), 15, 80))
         if row:
             c.execute("""UPDATE users SET name=?, picture=?, college=?, year=?, interests=?,
                          skills=?, achievements=?, github=?, linkedin=?, last_seen=? WHERE email=?""",
-                      (u.get("name"), u.get("picture", ""), u.get("college", ""), u.get("year", ""),
-                       interests, skills, ach, u.get("github", ""), u.get("linkedin", ""), now, email))
+                      (name, picture, college, year, interests, skills, ach, github, linkedin, now, email))
         else:
             c.execute("""INSERT INTO users(email,name,picture,college,year,interests,skills,
                          achievements,github,linkedin,created,last_seen)
                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      (email, u.get("name"), u.get("picture", ""), u.get("college", ""), u.get("year", ""),
-                       interests, skills, ach, u.get("github", ""), u.get("linkedin", ""), now, now))
+                      (email, name, picture, college, year, interests, skills, ach, github, linkedin, now, now))
     return get_user(email)
 
 
@@ -112,10 +142,10 @@ def create_team(p):
     with _LOCK, _conn() as c:
         cur = c.execute("""INSERT INTO teams(email,name,picture,event,role,looking_for,skills,
                            message,contact,open,ts) VALUES(?,?,?,?,?,?,?,?,?,1,?)""",
-                        ((p.get("email") or "").lower(), p.get("name"), p.get("picture", ""),
-                         p.get("event", ""), p.get("role", ""), p.get("looking_for", ""),
-                         json.dumps(p.get("skills") or []), p.get("message", ""),
-                         p.get("contact", ""), now))
+                        ((p.get("email") or "").lower(), clean(p.get("name"), 80) or "A student",
+                         "", clean(p.get("event"), 100), clean(p.get("role"), 60),
+                         clean(p.get("looking_for"), 80), json.dumps(clean_list(p.get("skills"), 12, 30)),
+                         clean(p.get("message"), 400), clean(p.get("contact"), 120), now))
         return cur.lastrowid
 
 
@@ -209,19 +239,40 @@ def history(only_ended=True, limit=200):
         return [json.loads(r["json"]) for r in c.execute(q, (limit,))]
 
 
+# ---------- threat scanner ----------
+_THREAT = re.compile(
+    r"<script|</script|<iframe|<img|<svg|</|/>|javascript:|data:text/html|"
+    r"on\w+\s*=|document\.|window\.|this\.|\.remove\(|\.cookie|eval\(|fetch\(|"
+    r"innerhtml|alert\(|prompt\(|=>|[\"']\s*>|[\"']\s*\)\s*;|"
+    r"union\s+select|drop\s+table|insert\s+into|;--|/\*|\bor\s+1=1\b|0x[0-9a-f]{6,}",
+    re.IGNORECASE)
+
+
+def looks_malicious(*vals):
+    """True if any value looks like an XSS/SQLi/script-injection payload."""
+    for v in vals:
+        if v is None:
+            continue
+        if isinstance(v, (list, tuple)):
+            if looks_malicious(*v):
+                return True
+        elif _THREAT.search(str(v)):
+            return True
+    return False
+
+
 # ---------- analytics / presence (owner dashboard) ----------
-def track(sid, email, name, kind, detail, path):
+def track(sid, email, name, kind, detail, path, ip=""):
     now = time.time()
     with _LOCK, _conn() as c:
-        c.execute("""INSERT INTO analytics(ts,sid,email,name,kind,detail,path)
-                     VALUES(?,?,?,?,?,?,?)""",
-                  (now, sid, (email or "").lower(), name, kind, (detail or "")[:300], path))
-        # update presence heartbeat
-        c.execute("""INSERT INTO presence(sid,email,name,path,last_seen) VALUES(?,?,?,?,?)
+        c.execute("""INSERT INTO analytics(ts,sid,email,name,kind,detail,path,ip)
+                     VALUES(?,?,?,?,?,?,?,?)""",
+                  (now, sid, (email or "").lower(), clean(name, 80), clean(kind, 20),
+                   clean(detail, 300), clean(path, 60), ip))
+        c.execute("""INSERT INTO presence(sid,email,name,path,last_seen,ip) VALUES(?,?,?,?,?,?)
                      ON CONFLICT(sid) DO UPDATE SET email=excluded.email,name=excluded.name,
-                     path=excluded.path,last_seen=excluded.last_seen""",
-                  (sid, (email or "").lower(), name, path, now))
-        # keep analytics table from growing forever
+                     path=excluded.path,last_seen=excluded.last_seen,ip=excluded.ip""",
+                  (sid, (email or "").lower(), clean(name, 80), clean(path, 60), now, ip))
         c.execute("DELETE FROM analytics WHERE id < (SELECT MAX(id)-5000 FROM analytics)")
     return True
 
@@ -230,14 +281,14 @@ def live_users(window=70):
     cut = time.time() - window
     with _LOCK, _conn() as c:
         return [dict(r) for r in c.execute(
-            "SELECT sid,email,name,path,last_seen FROM presence WHERE last_seen>=? ORDER BY last_seen DESC",
+            "SELECT sid,email,name,path,last_seen,ip FROM presence WHERE last_seen>=? ORDER BY last_seen DESC",
             (cut,))]
 
 
 def recent_activity(limit=80):
     with _LOCK, _conn() as c:
         return [dict(r) for r in c.execute(
-            "SELECT ts,email,name,kind,detail,path FROM analytics ORDER BY id DESC LIMIT ?", (limit,))]
+            "SELECT ts,email,name,kind,detail,path,ip FROM analytics ORDER BY id DESC LIMIT ?", (limit,))]
 
 
 def all_users(limit=500):
@@ -254,6 +305,66 @@ def delete_user(email):
             c.execute(f"DELETE FROM {t} WHERE email=?", (email,))
         c.execute("DELETE FROM teams WHERE email=?", (email,))
     return True
+
+
+# ---------- IP block / user ban ----------
+def block_ip(ip, reason=""):
+    if not ip:
+        return False
+    with _LOCK, _conn() as c:
+        c.execute("INSERT OR REPLACE INTO blocked_ips(ip,reason,ts) VALUES(?,?,?)",
+                  (ip, clean(reason, 120), time.time()))
+    return True
+
+
+def unblock_ip(ip):
+    with _LOCK, _conn() as c:
+        c.execute("DELETE FROM blocked_ips WHERE ip=?", (ip,))
+    return True
+
+
+def is_ip_blocked(ip):
+    if not ip:
+        return False
+    with _LOCK, _conn() as c:
+        return c.execute("SELECT 1 FROM blocked_ips WHERE ip=?", (ip,)).fetchone() is not None
+
+
+def list_blocked_ips():
+    with _LOCK, _conn() as c:
+        return [dict(r) for r in c.execute("SELECT ip,reason,ts FROM blocked_ips ORDER BY ts DESC")]
+
+
+def ban_user(email, reason=""):
+    """Delete the user AND remember their email so they can't re-register."""
+    email = (email or "").strip().lower()
+    if not email:
+        return False
+    delete_user(email)
+    with _LOCK, _conn() as c:
+        c.execute("INSERT OR REPLACE INTO banned_emails(email,reason,ts) VALUES(?,?,?)",
+                  (email, clean(reason, 120), time.time()))
+    return True
+
+
+def is_email_banned(email):
+    email = (email or "").strip().lower()
+    if not email:
+        return False
+    with _LOCK, _conn() as c:
+        return c.execute("SELECT 1 FROM banned_emails WHERE email=?", (email,)).fetchone() is not None
+
+
+def auto_ban_ip_for_email(email):
+    """Find the most recent IP an email used and block it (for auto-removal)."""
+    email = (email or "").strip().lower()
+    with _LOCK, _conn() as c:
+        r = c.execute("SELECT ip FROM analytics WHERE email=? AND ip!='' ORDER BY id DESC LIMIT 1",
+                      (email,)).fetchone()
+        ip = r["ip"] if r else ""
+    if ip:
+        block_ip(ip, "auto: payload/attack from this account")
+    return ip
 
 
 def wipe_all():

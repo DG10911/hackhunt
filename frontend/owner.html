@@ -103,6 +103,15 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
         <tbody></tbody></table></div>
     </div>
 
+    <div class="panel">
+      <h2>🛡️ Blocked IPs</h2>
+      <div class="feed" id="blockedList"></div>
+      <div class="controls" style="margin-top:12px">
+        <input id="manualIp" placeholder="Block an IP manually (e.g. 49.36.x.x)" style="max-width:280px">
+        <button class="btn danger" id="manualBlockBtn">Block IP</button>
+      </div>
+    </div>
+
     <div class="panel danger-zone">
       <h2>⚠️ Danger zone — site controls</h2>
       <div class="controls">
@@ -154,7 +163,8 @@ async function poll(){
     $("#liveList").innerHTML=d.live.length?d.live.map(u=>`<div class="row">
       <span class="who">${esc(u.name||"Guest")}</span>
       <span class="pill presence">${esc(u.path||"—")}</span>
-      <span class="meta">${esc(u.email||"anon")} · ${ago(u.last_seen)} ago</span></div>`).join(""):'<p class="muted">No one online right now.</p>';
+      <span class="meta">${esc(u.email||"anon")} · ${esc(u.ip||"?")} · ${ago(u.last_seen)} ago</span>
+      ${u.ip?`<button class="btn danger" style="padding:4px 8px;font-size:.7rem" data-blockip="${esc(u.ip)}">Block IP</button>`:""}</div>`).join(""):'<p class="muted">No one online right now.</p>';
     // activity
     $("#activityList").innerHTML=d.activity.length?d.activity.map(a=>`<div class="row">
       <span class="pill ${esc((a.kind||"").replace(/[^a-z]/gi,""))}">${esc(a.kind)}</span>
@@ -165,9 +175,19 @@ async function poll(){
     $("#usersTbl tbody").innerHTML=d.users.map(u=>`<tr>
       <td>${esc(u.name||"—")}</td><td>${esc(u.email||"—")}</td><td>${esc(u.college||"—")}</td><td>${esc(u.year||"—")}</td>
       <td class="muted">${u.last_seen?ago(u.last_seen)+" ago":"—"}</td>
-      <td><button class="btn danger" style="padding:5px 10px" data-del="${esc(u.email)}">Delete</button></td></tr>`).join("")
+      <td style="white-space:nowrap">
+        <button class="btn ghost" style="padding:5px 9px" data-del="${esc(u.email)}">Delete</button>
+        <button class="btn danger" style="padding:5px 9px" data-ban="${esc(u.email)}">Ban + Block IP</button>
+      </td></tr>`).join("")
       ||'<tr><td colspan="6" class="muted">No users yet.</td></tr>';
     $("#usersTbl").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>delUser(b.dataset.del));
+    $("#usersTbl").querySelectorAll("[data-ban]").forEach(b=>b.onclick=()=>banUser(b.dataset.ban));
+    $("#liveList").querySelectorAll("[data-blockip]").forEach(b=>b.onclick=()=>blockIp(b.dataset.blockip));
+    // blocked IPs
+    $("#blockedList").innerHTML=(d.blocked_ips||[]).length?d.blocked_ips.map(b=>`<div class="row">
+      <span class="who">${esc(b.ip)}</span><span class="meta">${esc(b.reason||"")}</span>
+      <button class="btn ghost" style="padding:4px 8px;font-size:.7rem" data-unblock="${esc(b.ip)}">Unblock</button></div>`).join(""):'<p class="muted">No blocked IPs.</p>';
+    $("#blockedList").querySelectorAll("[data-unblock]").forEach(b=>b.onclick=()=>unblockIp(b.dataset.unblock));
     // maintenance button
     const m=$("#maintBtn");m.dataset.on=d.maintenance?"1":"0";
     m.textContent=d.maintenance?"🔴 Site is DOWN — bring it back":"🟢 Site is LIVE — take it down";
@@ -176,11 +196,21 @@ async function poll(){
 }
 setInterval(poll,3000);
 
+function ownerPost(path,body){return fetch(BASE+path,{method:"POST",headers:{"Content-Type":"application/json","X-Owner-Token":TOKEN},body:JSON.stringify(body||{})});}
 async function delUser(email){
   if(!confirm("Delete user "+email+" and all their data?"))return;
-  await fetch(BASE+"/api/owner/delete-user",{method:"POST",headers:{"Content-Type":"application/json","X-Owner-Token":TOKEN},body:JSON.stringify({email})});
-  poll();
+  await ownerPost("/api/owner/delete-user",{email});poll();
 }
+async function banUser(email){
+  if(!confirm("Ban "+email+"? This deletes their data, blocks re-signup, AND blocks their last IP."))return;
+  await ownerPost("/api/owner/ban-user",{email,block_ip:true});poll();
+}
+async function blockIp(ip){
+  if(!confirm("Block IP "+ip+"? They lose all access to the site."))return;
+  await ownerPost("/api/owner/block-ip",{ip,reason:"manual"});poll();
+}
+async function unblockIp(ip){await ownerPost("/api/owner/unblock-ip",{ip});poll();}
+document.addEventListener("click",e=>{if(e.target.id==="manualBlockBtn"){const ip=$("#manualIp").value.trim();if(ip)blockIp(ip);}});
 $("#maintBtn").onclick=async()=>{
   const on=$("#maintBtn").dataset.on!=="1";
   if(on&&!confirm("Take the WHOLE site down for all users?"))return;

@@ -41,6 +41,36 @@ FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "fr
 app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
 CORS(app)
 
+
+def get_ip():
+    """Real client IP (Railway/Render put it in X-Forwarded-For)."""
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or ""
+
+
+# simple in-memory rate limiter for write endpoints (per IP)
+_RL = {}
+_RL_MAX, _RL_WINDOW = 40, 60  # 40 writes / minute / IP
+
+
+def _rate_ok(ip):
+    now = time.time()
+    bucket = [t for t in _RL.get(ip, []) if now - t < _RL_WINDOW]
+    bucket.append(now)
+    _RL[ip] = bucket
+    return len(bucket) <= _RL_MAX
+
+
+@app.after_request
+def _security_headers(resp):
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "SAMEORIGIN"
+    resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    resp.headers["X-XSS-Protection"] = "1; mode=block"
+    return resp
+
 TTL = 60 * 30  # 30 min
 CACHE_VERSION = 3  # bump to invalidate old on-disk caches (e.g. after data fixes)
 CACHE_FILE = os.path.join(os.environ.get("HH_DATA_DIR", os.path.dirname(__file__)), "cache.json")
@@ -222,7 +252,19 @@ def community():
 @app.route("/api/auth", methods=["POST"])
 def auth():
     try:
-        u = db.upsert_user(request.get_json(force=True) or {})
+        b = request.get_json(force=True) or {}
+        email = (b.get("email") or "").strip().lower()
+        if db.is_email_banned(email):
+            return jsonify({"ok": False, "error": "account suspended"}), 403
+        # auto-scan: if the profile carries an attack payload, ban + block IP
+        if db.looks_malicious(b.get("name"), b.get("college"), b.get("year"),
+                              b.get("github"), b.get("linkedin"), b.get("skills"),
+                              b.get("achievements")):
+            db.block_ip(get_ip(), "auto: malicious profile payload")
+            if email:
+                db.ban_user(email, "auto: injection attempt")
+            return jsonify({"ok": False, "error": "blocked"}), 403
+        u = db.upsert_user(b)
         return jsonify({"ok": True, "user": u})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:160]}), 200
@@ -255,6 +297,14 @@ def teams():
     try:
         if request.method == "POST":
             b = request.get_json(force=True) or {}
+            if db.is_email_banned((b.get("email") or "").lower()):
+                return jsonify({"ok": False, "error": "account suspended"}), 403
+            if db.looks_malicious(b.get("event"), b.get("role"), b.get("looking_for"),
+                                  b.get("message"), b.get("contact"), b.get("skills")):
+                db.block_ip(get_ip(), "auto: malicious team post")
+                if b.get("email"):
+                    db.ban_user((b.get("email") or "").lower(), "auto: injection attempt")
+                return jsonify({"ok": False, "error": "blocked"}), 403
             if not (b.get("event") and b.get("contact")):
                 return jsonify({"ok": False, "error": "event and contact required"}), 200
             db.create_team(b)
@@ -291,7 +341,7 @@ def track():
     try:
         b = request.get_json(force=True) or {}
         db.track(b.get("sid", ""), b.get("email", ""), b.get("name", ""),
-                 b.get("kind", "view"), b.get("detail", ""), b.get("path", ""))
+                 b.get("kind", "view"), b.get("detail", ""), b.get("path", ""), ip=get_ip())
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:120]}), 200
@@ -314,9 +364,39 @@ def owner_overview():
         "live": db.live_users(),
         "activity": db.recent_activity(),
         "users": db.all_users(),
+        "blocked_ips": db.list_blocked_ips(),
         "stats": db.stats(),
         "maintenance": db.get_setting("maintenance", "0") == "1",
     })
+
+
+@app.route("/api/owner/block-ip", methods=["POST"])
+def owner_block_ip():
+    if not _is_owner():
+        return jsonify({"ok": False}), 401
+    b = request.get_json(force=True) or {}
+    db.block_ip(b.get("ip", ""), b.get("reason", "manual"))
+    return jsonify({"ok": True, "blocked_ips": db.list_blocked_ips()})
+
+
+@app.route("/api/owner/unblock-ip", methods=["POST"])
+def owner_unblock_ip():
+    if not _is_owner():
+        return jsonify({"ok": False}), 401
+    db.unblock_ip((request.get_json(force=True) or {}).get("ip", ""))
+    return jsonify({"ok": True, "blocked_ips": db.list_blocked_ips()})
+
+
+@app.route("/api/owner/ban-user", methods=["POST"])
+def owner_ban_user():
+    if not _is_owner():
+        return jsonify({"ok": False}), 401
+    b = request.get_json(force=True) or {}
+    email = b.get("email", "")
+    ip = db.auto_ban_ip_for_email(email) if b.get("block_ip") else ""
+    db.ban_user(email, "manual ban")
+    return jsonify({"ok": True, "users": db.all_users(),
+                    "blocked_ips": db.list_blocked_ips(), "auto_blocked_ip": ip})
 
 
 @app.route("/api/owner/delete-user", methods=["POST"])
@@ -345,11 +425,23 @@ def owner_wipe():
 
 
 @app.before_request
-def _maintenance_gate():
-    # When the owner flips maintenance ON, freeze the public site APIs.
-    if request.path.startswith("/api/") and db.get_setting("maintenance", "0") == "1":
+def _gate():
+    p = request.path
+    # 1) blocked IPs get nothing (except owner console so you can still manage)
+    if not p.startswith("/api/owner"):
+        try:
+            if db.is_ip_blocked(get_ip()):
+                return jsonify({"blocked": True, "message": "Access denied."}), 403
+        except Exception:
+            pass
+    # 2) rate-limit write APIs
+    if request.method == "POST" and p.startswith("/api/") and not p.startswith("/api/owner"):
+        if not _rate_ok(get_ip()):
+            return jsonify({"error": "Too many requests, slow down."}), 429
+    # 3) maintenance freeze
+    if p.startswith("/api/") and db.get_setting("maintenance", "0") == "1":
         allow = ("/api/owner", "/api/track", "/api/health")
-        if not any(request.path.startswith(a) for a in allow):
+        if not any(p.startswith(a) for a in allow):
             return jsonify({"maintenance": True,
                             "message": "HackHunt is temporarily down for maintenance."}), 503
 
