@@ -122,6 +122,7 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
 const BASE = (location.port==="5050"||location.protocol==="http:"||location.protocol==="https:")?"":"http://localhost:5050";
 let TOKEN = sessionStorage.getItem("hh_owner_token")||"";
 const $=s=>document.querySelector(s);
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function fmtTime(ts){try{return new Date(ts*1000).toLocaleTimeString();}catch(e){return"";}}
 function ago(ts){const s=Math.round(Date.now()/1000-ts);return s<60?s+"s":Math.round(s/60)+"m";}
 
@@ -151,20 +152,20 @@ async function poll(){
     $("#updated").textContent="updated "+new Date().toLocaleTimeString();
     // live
     $("#liveList").innerHTML=d.live.length?d.live.map(u=>`<div class="row">
-      <span class="who">${u.name||"Guest"}</span>
-      <span class="pill presence">${u.path||"—"}</span>
-      <span class="meta">${u.email||"anon"} · ${ago(u.last_seen)} ago</span></div>`).join(""):'<p class="muted">No one online right now.</p>';
+      <span class="who">${esc(u.name||"Guest")}</span>
+      <span class="pill presence">${esc(u.path||"—")}</span>
+      <span class="meta">${esc(u.email||"anon")} · ${ago(u.last_seen)} ago</span></div>`).join(""):'<p class="muted">No one online right now.</p>';
     // activity
     $("#activityList").innerHTML=d.activity.length?d.activity.map(a=>`<div class="row">
-      <span class="pill ${a.kind}">${a.kind}</span>
-      <span class="who">${a.name||"Guest"}</span>
-      <span>${(a.detail||a.path||"").slice(0,46)}</span>
+      <span class="pill ${esc((a.kind||"").replace(/[^a-z]/gi,""))}">${esc(a.kind)}</span>
+      <span class="who">${esc(a.name||"Guest")}</span>
+      <span>${esc((a.detail||a.path||"").slice(0,46))}</span>
       <span class="meta">${fmtTime(a.ts)}</span></div>`).join(""):'<p class="muted">No activity yet.</p>';
     // users
     $("#usersTbl tbody").innerHTML=d.users.map(u=>`<tr>
-      <td>${u.name||"—"}</td><td>${u.email||"—"}</td><td>${u.college||"—"}</td><td>${u.year||"—"}</td>
+      <td>${esc(u.name||"—")}</td><td>${esc(u.email||"—")}</td><td>${esc(u.college||"—")}</td><td>${esc(u.year||"—")}</td>
       <td class="muted">${u.last_seen?ago(u.last_seen)+" ago":"—"}</td>
-      <td><button class="btn danger" style="padding:5px 10px" data-del="${u.email}">Delete</button></td></tr>`).join("")
+      <td><button class="btn danger" style="padding:5px 10px" data-del="${esc(u.email)}">Delete</button></td></tr>`).join("")
       ||'<tr><td colspan="6" class="muted">No users yet.</td></tr>';
     $("#usersTbl").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>delUser(b.dataset.del));
     // maintenance button

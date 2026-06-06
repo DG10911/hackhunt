@@ -469,7 +469,8 @@ const $=s=>document.querySelector(s);
 const grid=$("#grid");
 
 // ===================== HELPERS =====================
-function toast(msg,icon){const t=$("#toast");t.innerHTML=svg(icon||"check")+`<span>${msg}</span>`;t.classList.add("show");
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function toast(msg,icon){const t=$("#toast");t.innerHTML=svg(icon||"check")+`<span>${esc(msg)}</span>`;t.classList.add("show");
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2600);}
 function fmt(d){if(!d)return"TBA";if(/^\d{4}-\d{2}-\d{2}/.test(d)){try{return new Date(d).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});}catch(e){return d;}}return d;}
 function daysLeft(d){if(!d||!/^\d{4}-\d{2}-\d{2}/.test(d))return null;
@@ -739,14 +740,14 @@ function renderTeams(){
   $("#teamsList").innerHTML=TEAMS.map(t=>`
     <div class="pcard" style="padding:18px">
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
-        <h3 style="font-size:1.05rem">${t.event||"Hackathon"}</h3>
+        <h3 style="font-size:1.05rem">${esc(t.event||"Hackathon")}</h3>
         <span class="pill">${(t.skills||[]).length?t.skills.length+" skills":"Team"}</span>
       </div>
-      <div class="org" style="margin:6px 0">${t.name||"A student"}${t.role?` · ${t.role}`:""}</div>
-      ${t.looking_for?`<div class="m" style="margin:4px 0">${svg("users")}Looking for: ${t.looking_for}</div>`:""}
-      ${t.message?`<p style="color:var(--muted);font-size:.9rem;margin:8px 0">${t.message}</p>`:""}
-      ${(t.skills||[]).length?`<div class="tags" style="margin:8px 0">${t.skills.map(s=>`<span class="tag">${s}</span>`).join("")}</div>`:""}
-      <a class="btn primary" style="margin-top:8px" href="${contactHref(t.contact)}" target="_blank" rel="noopener">${svg("share")}Connect</a>
+      <div class="org" style="margin:6px 0">${esc(t.name||"A student")}${t.role?` · ${esc(t.role)}`:""}</div>
+      ${t.looking_for?`<div class="m" style="margin:4px 0">${svg("users")}Looking for: ${esc(t.looking_for)}</div>`:""}
+      ${t.message?`<p style="color:var(--muted);font-size:.9rem;margin:8px 0">${esc(t.message)}</p>`:""}
+      ${(t.skills||[]).length?`<div class="tags" style="margin:8px 0">${t.skills.map(s=>`<span class="tag">${esc(s)}</span>`).join("")}</div>`:""}
+      <a class="btn primary" style="margin-top:8px" href="${esc(contactHref(t.contact))}" target="_blank" rel="noopener">${svg("share")}Connect</a>
     </div>`).join("");
 }
 function contactHref(c){c=(c||"").trim();
