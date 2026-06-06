@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>HackHunt India · Hackathons, Ideathons, Hiring Challenges & Conferences</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+:root{
+  --bg:#070710; --bg2:#101024; --surface:rgba(255,255,255,.045); --surface-2:rgba(255,255,255,.07);
+  --brd:rgba(255,255,255,.10); --brd-2:rgba(255,255,255,.16);
+  --txt:#f4f5fb; --muted:#a2a8bf; --faint:#727690;
+  --accent:#7c5cff; --accent-2:#19e3c7; --accent-3:#ff5c92; --accent-4:#ffb13b;
+  --glow:rgba(124,92,255,.38); --radius:18px; --maxw:1200px;
+  --shadow:0 18px 50px -22px rgba(0,0,0,.7);
+}
+[data-theme="light"]{
+  --bg:#f3f5fb; --bg2:#e7ebf6; --surface:#ffffff; --surface-2:#f3f4fb;
+  --brd:rgba(20,22,45,.10); --brd-2:rgba(20,22,45,.18);
+  --txt:#13152a; --muted:#565b76; --faint:#878ca6; --glow:rgba(124,92,255,.22);
+  --shadow:0 18px 44px -26px rgba(20,22,60,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--txt);
+  min-height:100vh;overflow-x:hidden;transition:background .4s,color .4s;line-height:1.5}
+h1,h2,h3,h4,.font-d{font-family:Sora,sans-serif;letter-spacing:-.02em}
+a{color:inherit}
+.ic{width:18px;height:18px;flex:none;vertical-align:middle}
+.ic-sm{width:15px;height:15px}.ic-lg{width:22px;height:22px}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--brd-2);border-radius:8px}
+
+/* ---------- backdrop ---------- */
+.aurora{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none}
+.aurora span{position:absolute;border-radius:50%;filter:blur(100px);opacity:.5;animation:float 20s ease-in-out infinite}
+.aurora span:nth-child(1){width:520px;height:520px;background:var(--accent);top:-160px;left:-120px}
+.aurora span:nth-child(2){width:440px;height:440px;background:var(--accent-2);bottom:-160px;right:-100px;animation-delay:-7s}
+.aurora span:nth-child(3){width:380px;height:380px;background:var(--accent-3);top:35%;left:60%;animation-delay:-13s}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(60px,-50px) scale(1.12)}66%{transform:translate(-50px,40px) scale(.92)}}
+.grid-bg{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:linear-gradient(var(--brd) 1px,transparent 1px),linear-gradient(90deg,var(--brd) 1px,transparent 1px);
+  background-size:48px 48px;opacity:.5;mask-image:radial-gradient(circle at 50% 0,#000,transparent 78%)}
+
+/* ---------- header ---------- */
+header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
+  background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--brd)}
+.bar{max-width:var(--maxw);margin:0 auto;padding:12px clamp(14px,3vw,28px);display:flex;align-items:center;gap:14px}
+.brand{font-family:Sora;font-weight:800;font-size:1.25rem;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.logo{width:34px;height:34px;border-radius:10px;background:conic-gradient(from 200deg,var(--accent),var(--accent-2),var(--accent-3),var(--accent-4),var(--accent));
+  box-shadow:0 0 20px var(--glow);display:grid;place-items:center;color:#fff;animation:spin 12s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.grad{background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav{display:flex;gap:2px;margin-left:6px;background:var(--surface);border:1px solid var(--brd);padding:4px;border-radius:14px}
+.nav-btn{display:flex;align-items:center;gap:7px;background:none;border:none;color:var(--muted);font-weight:600;
+  font-size:.86rem;padding:9px 13px;border-radius:10px;cursor:pointer;transition:.18s;font-family:inherit;white-space:nowrap}
+.nav-btn:hover{color:var(--txt)}
+.nav-btn.active{color:#fff;background:linear-gradient(90deg,var(--accent),var(--accent-3));box-shadow:0 6px 16px var(--glow)}
+.spacer{margin-left:auto}
+.iconbtn{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--brd);background:var(--surface);
+  color:var(--txt);border-radius:11px;cursor:pointer;transition:.18s}
+.iconbtn:hover{background:var(--surface-2);transform:translateY(-1px)}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--brd);background:var(--surface);color:var(--txt);
+  padding:10px 16px;border-radius:11px;cursor:pointer;font-weight:600;font-size:.88rem;font-family:inherit;
+  transition:.18s;text-decoration:none;white-space:nowrap}
+.btn:hover{background:var(--surface-2);transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent-3));border:none;color:#fff;box-shadow:0 8px 22px var(--glow)}
+.btn.primary:hover{box-shadow:0 12px 28px var(--glow)}
+.btn:active{transform:scale(.97)}
+.avatar{width:40px;height:40px;border-radius:50%;border:2px solid var(--accent);cursor:pointer;background-size:cover;
+  background-position:center;display:grid;place-items:center;color:#fff;font-weight:700;font-family:Sora;font-size:.95rem;flex:none}
+
+/* mobile nav drawer */
+.menu-toggle{display:none}
+@media(max-width:880px){
+  .nav{position:fixed;top:64px;left:0;right:0;flex-direction:column;margin:0;border-radius:0;
+    border-left:none;border-right:none;padding:8px;transform:translateY(-150%);transition:transform .3s;z-index:55}
+  .nav.open{transform:translateY(0)}
+  .nav-btn{justify-content:flex-start;font-size:.95rem;padding:13px}
+  .menu-toggle{display:grid}
+}
+
+/* ---------- hero ---------- */
+.hero{max-width:var(--maxw);margin:0 auto;text-align:center;padding:clamp(34px,7vw,72px) clamp(16px,4vw,24px) 22px}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;color:var(--muted);
+  background:var(--surface);border:1px solid var(--brd);padding:6px 14px;border-radius:30px;margin-bottom:20px}
+.hero h1{font-size:clamp(2rem,5.4vw,3.7rem);font-weight:800;line-height:1.05}
+.hero p{color:var(--muted);max-width:600px;margin:16px auto 0;font-size:clamp(.95rem,2vw,1.08rem)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:680px;margin:28px auto 0}
+@media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--surface);border:1px solid var(--brd);border-radius:14px;padding:14px 10px}
+.stat b{font-family:Sora;font-size:1.6rem;display:block;background:linear-gradient(90deg,var(--accent-2),var(--accent));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.stat span{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+
+/* ---------- controls ---------- */
+.controls{max-width:var(--maxw);margin:24px auto 0;padding:0 clamp(14px,4vw,24px);display:flex;flex-direction:column;gap:14px}
+.searchbar{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--brd);
+  border-radius:14px;padding:13px 16px;transition:.2s}
+.searchbar:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.searchbar input{flex:1;background:none;border:none;outline:none;color:var(--txt);font-size:1rem;font-family:inherit}
+.searchbar input::placeholder{color:var(--faint)}
+.searchbar .ic{color:var(--muted)}
+.filter-row{display:flex;align-items:center;gap:10px}
+.filter-label{display:flex;align-items:center;gap:6px;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--faint);font-weight:700;min-width:74px;flex:none}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:11px;border:1px solid var(--brd);
+  background:var(--surface);color:var(--muted);cursor:pointer;font-size:.83rem;font-weight:600;transition:.16s;white-space:nowrap;font-family:inherit}
+.chip:hover{color:var(--txt);border-color:var(--brd-2);transform:translateY(-1px)}
+.chip.active{background:linear-gradient(90deg,var(--accent),var(--accent-3));color:#fff;border-color:transparent;box-shadow:0 6px 16px var(--glow)}
+.chip .ic{width:15px;height:15px}
+.chip.theme.active{background:linear-gradient(90deg,var(--accent-2),var(--accent))}
+@media(max-width:700px){.filter-row{flex-direction:column;align-items:flex-start;gap:7px}.filter-label{min-width:0}}
+.src-status{max-width:var(--maxw);margin:14px auto 0;padding:0 clamp(14px,4vw,24px);display:flex;gap:14px;flex-wrap:wrap;font-size:.74rem;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.result-head{max-width:var(--maxw);margin:22px auto 0;padding:0 clamp(14px,4vw,24px);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.result-head h2{font-size:1.15rem}.result-head .count{color:var(--muted);font-size:.85rem}
+.rh-tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.select-wrap{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--brd);border-radius:11px;padding:0 12px;color:var(--muted)}
+.select-wrap .ic{width:15px;height:15px}
+.select-wrap select{background:none;border:none;color:var(--txt);font-family:inherit;font-size:.86rem;font-weight:600;padding:10px 4px;outline:none;cursor:pointer}
+.select-wrap select option{background:var(--bg2);color:var(--txt)}
+.countdown{font-size:.74rem;font-weight:700;padding:5px 9px;border-radius:8px;display:inline-flex;gap:5px;align-items:center}
+.countdown.urgent{background:rgba(255,92,146,.16);color:#ff7ba6}
+.countdown.soon{background:rgba(255,177,59,.16);color:#ffc266}
+.countdown.calm{background:var(--surface-2);color:var(--muted)}
+.countdown.ended{background:var(--surface-2);color:var(--faint)}
+
+/* ---------- grid / cards ---------- */
+.grid{max-width:var(--maxw);margin:16px auto 70px;padding:0 clamp(14px,4vw,24px);
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:20px}
+@media(max-width:640px){.grid{grid-template-columns:1fr;gap:16px}}
+.card{background:var(--surface);border:1px solid var(--brd);border-radius:var(--radius);overflow:hidden;position:relative;
+  display:flex;flex-direction:column;cursor:pointer;transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s,border-color .25s;
+  opacity:0;transform:translateY(20px);animation:rise .5s forwards}
+@keyframes rise{to{opacity:1;transform:translateY(0)}}
+.card:hover{border-color:var(--brd-2);box-shadow:var(--shadow)}
+.banner{height:130px;position:relative;display:grid;place-items:center;overflow:hidden}
+.banner img{width:100%;height:100%;object-fit:cover;transition:transform .45s}
+.card:hover .banner img{transform:scale(1.07)}
+.banner.gen::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 72% 22%,rgba(255,255,255,.28),transparent 60%);mix-blend-mode:overlay}
+.banner .b-ic{width:46px;height:46px;color:rgba(255,255,255,.95);filter:drop-shadow(0 4px 12px rgba(0,0,0,.3));animation:bob 5s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.ribbon{position:absolute;bottom:10px;left:10px;display:inline-flex;align-items:center;gap:5px;background:rgba(8,8,18,.62);
+  color:#fff;font-size:.66rem;font-weight:800;letter-spacing:.06em;padding:5px 10px;border-radius:8px;backdrop-filter:blur(6px)}
+.ribbon.gov{background:rgba(255,177,59,.92);color:#1a1200}
+.bookmark{position:absolute;top:10px;right:10px;z-index:3;width:34px;height:34px;border-radius:50%;border:none;
+  background:rgba(8,8,18,.5);color:#fff;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px);transition:.18s}
+.bookmark:hover{transform:scale(1.15);background:rgba(8,8,18,.75)}
+.bookmark.on{background:var(--accent-3)}
+.bookmark.on .ic{fill:#fff}
+.body{padding:16px 17px 18px;display:flex;flex-direction:column;gap:9px;flex:1}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pill{font-size:.7rem;font-weight:700;padding:4px 9px;border-radius:7px;background:var(--surface-2);color:var(--accent-2);white-space:nowrap}
+.badge{font-size:.68rem;font-weight:700;padding:4px 9px;border-radius:7px;color:#fff;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.card h3{font-size:1.04rem;line-height:1.25;margin-top:2px}
+.org{color:var(--muted);font-size:.84rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rec{color:var(--accent-2);font-weight:700;font-size:.72rem;display:inline-flex;align-items:center;gap:3px}
+.meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:2px}
+.m{font-size:.74rem;color:var(--muted);background:var(--surface-2);padding:5px 9px;border-radius:8px;display:inline-flex;gap:5px;align-items:center}
+.m .ic{width:13px;height:13px;color:var(--faint)}
+.money{font-family:Sora;font-weight:700;font-size:.98rem;display:flex;align-items:center;gap:6px;margin-top:2px;
+  background:linear-gradient(90deg,var(--accent-4),var(--accent-3));-webkit-background-clip:text;background-clip:text;color:transparent}
+.money .ic{color:var(--accent-4)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:.68rem;color:var(--muted);border:1px solid var(--brd);padding:3px 8px;border-radius:20px}
+.card-actions{display:flex;gap:8px;margin-top:auto;padding-top:6px}
+.card-actions .btn{flex:1;justify-content:center;padding:9px}
+.sample-flag{position:absolute;top:0;left:0;z-index:3;font-size:.62rem;font-weight:700;background:var(--accent-3);color:#fff;padding:4px 9px;border-bottom-right-radius:10px;display:inline-flex;align-items:center;gap:4px}
+.sample-flag.verified{background:#1f9d57}
+.sample-flag .ic{width:12px;height:12px}
+
+/* skeleton */
+.skel{height:280px;border-radius:var(--radius);background:linear-gradient(100deg,var(--surface) 30%,var(--surface-2) 50%,var(--surface) 70%);
+  background-size:200% 100%;animation:sh 1.3s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:70px 20px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.empty .ic{width:42px;height:42px;color:var(--faint)}
+
+/* ---------- modal / overlay ---------- */
+.overlay{position:fixed;inset:0;background:rgba(4,4,12,.66);backdrop-filter:blur(7px);z-index:100;
+  display:none;align-items:center;justify-content:center;padding:18px;opacity:0;transition:opacity .25s}
+.overlay.show{display:flex;opacity:1}
+.modal{background:var(--bg2);border:1px solid var(--brd-2);border-radius:22px;max-width:540px;width:100%;
+  max-height:90vh;overflow:auto;transform:scale(.92) translateY(16px);transition:transform .3s cubic-bezier(.2,.9,.2,1);position:relative}
+.overlay.show .modal{transform:none}
+.modal-banner{height:120px;position:relative;display:grid;place-items:center;border-radius:22px 22px 0 0;overflow:hidden}
+.modal-banner img{width:100%;height:100%;object-fit:cover}
+.modal-body{padding:22px 24px 24px}
+.modal .close{position:absolute;top:14px;right:14px;z-index:4;width:38px;height:38px;border-radius:11px;border:none;
+  background:rgba(8,8,18,.5);color:#fff;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px);transition:.2s}
+.modal .close:hover{background:var(--accent-3);transform:rotate(90deg)}
+.modal h2{font-size:1.4rem;margin:4px 0}
+.row{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--brd);font-size:.9rem}
+.row span:first-child{color:var(--muted);display:flex;align-items:center;gap:7px}
+.row span:first-child .ic{width:15px;height:15px;color:var(--faint)}
+.cta{width:100%;justify-content:center;padding:14px;font-size:.98rem;margin-top:18px}
+.mini-actions{display:flex;gap:9px;margin-top:10px}
+.mini-actions .btn{flex:1;justify-content:center;padding:11px}
+
+/* ---------- auth gate ---------- */
+.gate{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:18px;
+  background:radial-gradient(circle at 30% 10%,rgba(124,92,255,.25),transparent 55%),
+             radial-gradient(circle at 80% 90%,rgba(25,227,199,.18),transparent 50%),var(--bg)}
+.gate.show{display:flex}
+.gate-card{background:var(--bg2);border:1px solid var(--brd-2);border-radius:24px;max-width:420px;width:100%;
+  padding:32px 28px;text-align:center;box-shadow:0 30px 80px -30px rgba(0,0,0,.8);animation:rise .5s forwards}
+.gate-card .logo{width:56px;height:56px;margin:0 auto 16px;border-radius:16px}
+.gate-card h2{font-size:1.55rem}
+.gate-card .sub{color:var(--muted);font-size:.92rem;margin-top:6px}
+.seg{display:flex;background:var(--surface);border:1px solid var(--brd);border-radius:12px;padding:4px;margin:22px 0 6px}
+.seg button{flex:1;background:none;border:none;color:var(--muted);font-weight:700;font-size:.88rem;padding:9px;border-radius:9px;cursor:pointer;font-family:inherit;transition:.18s}
+.seg button.on{background:var(--surface-2);color:var(--txt);box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.field{text-align:left;margin-top:12px}
+.field label{font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.field input{width:100%;margin-top:6px;background:var(--surface);border:1px solid var(--brd);border-radius:12px;
+  padding:12px 14px;color:var(--txt);font-size:.95rem;outline:none;font-family:inherit;transition:.18s}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.gbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:11px;background:#fff;color:#1f1f1f;border:none;
+  border-radius:12px;padding:13px;font-weight:600;font-size:.94rem;cursor:pointer;transition:.18s;font-family:inherit}
+.gbtn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.25)}
+.divider{display:flex;align-items:center;gap:12px;color:var(--faint);font-size:.76rem;margin:18px 0}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--brd)}
+.gate .note{font-size:.72rem;color:var(--faint);margin-top:16px;line-height:1.5}
+.gate-interests{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:10px}
+
+/* profile + resources */
+.panel{max-width:760px;margin:26px auto 70px;padding:0 clamp(14px,4vw,24px);display:none}
+.panel.show{display:block}
+.pcard{background:var(--surface);border:1px solid var(--brd);border-radius:var(--radius);padding:24px}
+.pcard h2{font-size:1.4rem}
+.interest{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:30px;border:1px solid var(--brd);
+  background:var(--surface-2);cursor:pointer;font-size:.82rem;font-weight:600;color:var(--muted);transition:.16s;margin:5px 6px 0 0}
+.interest:hover{color:var(--txt)}
+.interest.on{background:linear-gradient(90deg,var(--accent),var(--accent-3));color:#fff;border-color:transparent}
+.res-grid{max-width:var(--maxw);margin:20px auto 70px;padding:0 clamp(14px,4vw,24px);display:none;
+  grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.res-grid.show{display:grid}
+.res{background:var(--surface);border:1px solid var(--brd);border-radius:var(--radius);padding:22px;text-decoration:none;
+  color:var(--txt);transition:.2s;display:flex;flex-direction:column;gap:8px}
+.res:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:var(--shadow)}
+.res .r-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#fff;margin-bottom:4px}
+.res h3{font-size:1.04rem}.res p{color:var(--muted);font-size:.85rem}
+.res .go{margin-top:auto;color:var(--accent-2);font-size:.8rem;font-weight:700;display:inline-flex;align-items:center;gap:5px}
+
+/* toast + toTop */
+.toTop{position:fixed;bottom:24px;right:24px;width:50px;height:50px;border-radius:50%;border:none;z-index:70;
+  background:linear-gradient(135deg,var(--accent),var(--accent-3));color:#fff;display:grid;place-items:center;cursor:pointer;
+  box-shadow:0 12px 30px var(--glow);opacity:0;pointer-events:none;transition:.3s}
+.toTop.show{opacity:1;pointer-events:auto}.toTop:hover{transform:translateY(-3px) scale(1.06)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(90px);z-index:130;display:flex;align-items:center;gap:9px;
+  background:var(--bg2);border:1px solid var(--brd-2);padding:12px 18px;border-radius:13px;font-size:.88rem;
+  box-shadow:0 14px 34px rgba(0,0,0,.5);opacity:0;transition:.35s}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast .ic{color:var(--accent-2)}
+footer{text-align:center;color:var(--faint);padding:30px;font-size:.8rem;border-top:1px solid var(--brd)}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="aurora"><span></span><span></span><span></span></div>
+<div class="grid-bg"></div>
+
+<header>
+  <div class="bar">
+    <div class="brand"><span class="logo" id="logoIc"></span>Hack<span class="grad">Hunt</span></div>
+    <nav class="nav" id="nav">
+      <button class="nav-btn active" data-tab="hackathons"><span data-i="zap"></span>Hackathons</button>
+      <button class="nav-btn" data-tab="community"><span data-i="ticket"></span>Community</button>
+      <button class="nav-btn" data-tab="teams"><span data-i="users"></span>Team Finder</button>
+      <button class="nav-btn" data-tab="saved"><span data-i="heart"></span>Saved</button>
+      <button class="nav-btn" data-tab="history"><span data-i="clock"></span>Past</button>
+      <button class="nav-btn" data-tab="resources"><span data-i="book"></span>Resources</button>
+    </nav>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="refreshBtn" title="Refresh" data-i="refresh"></button>
+    <button class="iconbtn" id="themeBtn" title="Theme" data-i="moon"></button>
+    <button class="avatar" id="avatarBtn" title="Profile" style="display:none"></button>
+    <button class="iconbtn menu-toggle" id="menuBtn" data-i="menu"></button>
+  </div>
+</header>
+
+<section class="hero">
+  <span class="kicker"><span data-i="sparkles"></span> India's hackathon & tech-event hub for students</span>
+  <h1>Every <span class="grad">Hackathon</span>, Ideathon &amp; Conference, in one place</h1>
+  <p>Live from Unstop, Devpost, Devfolio, Hack2skill, Devnovate &amp; Internshala — plus conferences, summits &amp; meetups with tickets. Government, MNC, wildlife &amp; climate, online &amp; pan-India.</p>
+  <div class="stats">
+    <div class="stat"><b id="st-total">—</b><span>Opportunities</span></div>
+    <div class="stat"><b id="st-online">—</b><span>Online</span></div>
+    <div class="stat"><b id="st-mnc">—</b><span>MNC / Big Tech</span></div>
+    <div class="stat"><b id="st-gov">—</b><span>Government</span></div>
+  </div>
+</section>
+
+<div class="controls" id="controls">
+  <div class="searchbar">
+    <span data-i="search"></span>
+    <input id="search" placeholder="Search events, organizers, tech, prizes…" />
+  </div>
+  <div class="filter-row"><span class="filter-label"><span data-i="sparkles"></span>Quick</span><div class="chips" id="quickChips"></div></div>
+  <div class="filter-row" id="catRow"><span class="filter-label"><span data-i="layers"></span>Category</span><div class="chips" id="catChips"></div></div>
+  <div class="filter-row"><span class="filter-label"><span data-i="tag"></span>Theme</span><div class="chips" id="themeChips"></div></div>
+  <div class="filter-row" id="platRow"><span class="filter-label"><span data-i="grid"></span>Source</span><div class="chips" id="platChips"></div></div>
+</div>
+<div class="src-status" id="srcStatus"></div>
+
+<div class="result-head" id="resultHead">
+  <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h2 id="resultTitle">Hackathons</h2><span class="count" id="resultCount"></span></div>
+  <div class="rh-tools">
+    <button class="btn" id="surpriseBtn" title="Open a random event"><span data-i="sparkles"></span>Surprise me</button>
+    <div class="select-wrap"><span data-i="filter"></span>
+      <select id="sortSel">
+        <option value="recommended">Recommended</option>
+        <option value="deadline">Deadline — soonest</option>
+        <option value="prize">Prize — highest</option>
+        <option value="popular">Most popular</option>
+      </select>
+    </div>
+  </div>
+</div>
+<div class="grid" id="grid"></div>
+
+<!-- profile -->
+<div class="panel" id="profileView">
+  <div class="pcard">
+    <h2 id="pName">Your profile</h2>
+    <div class="org" id="pEmail" style="margin:4px 0 18px"></div>
+    <div class="field"><label>College</label><input id="pCollege" placeholder="e.g. IIT Bombay"></div>
+    <div class="field"><label>Year / Course</label><input id="pYear" placeholder="e.g. 2nd year B.Tech CSE"></div>
+    <div class="field"><label>Skills (comma separated)</label><input id="pSkills" placeholder="React, Python, ML, Figma"></div>
+    <div class="field"><label>Achievements (comma separated)</label><input id="pAch" placeholder="SIH 2025 finalist, 2× hackathon winner"></div>
+    <div class="field" style="display:flex;gap:10px"><div style="flex:1"><label>GitHub</label><input id="pGithub" placeholder="github.com/you"></div><div style="flex:1"><label>LinkedIn</label><input id="pLinkedin" placeholder="linkedin.com/in/you"></div></div>
+    <div class="field"><label>Your interests — powers “Recommended for you” &amp; Team Finder</label><div id="interestPicker" style="margin-top:8px"></div></div>
+    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn primary" id="saveProfile"><span data-i="check"></span>Save profile</button>
+      <button class="btn" id="logoutBtn"><span data-i="logout"></span>Sign out</button>
+    </div>
+  </div>
+</div>
+
+<!-- team finder -->
+<div class="panel" id="teamsView">
+  <div class="pcard" style="margin-bottom:18px">
+    <h2 style="display:flex;align-items:center;gap:8px">Find a hackathon team</h2>
+    <div class="org" style="margin:4px 0 14px">Post what you're building and the teammates you need. Others reach out via your contact.</div>
+    <div class="field"><label>Hackathon / event</label><input id="tEvent" placeholder="e.g. Smart India Hackathon 2026"></div>
+    <div class="field" style="display:flex;gap:10px"><div style="flex:1"><label>Your role</label><input id="tRole" placeholder="e.g. Frontend dev"></div><div style="flex:1"><label>Looking for</label><input id="tLooking" placeholder="e.g. 2 — ML + UI/UX"></div></div>
+    <div class="field"><label>Skills you bring (comma separated)</label><input id="tSkills" placeholder="React, Node, Figma"></div>
+    <div class="field"><label>Message</label><input id="tMsg" placeholder="Short pitch — idea, vibe, commitment level"></div>
+    <div class="field"><label>Contact (how teammates reach you)</label><input id="tContact" placeholder="email / WhatsApp / Discord / Telegram"></div>
+    <button class="btn primary" id="postTeam" style="margin-top:16px"><span data-i="users"></span>Post team request</button>
+  </div>
+  <div class="result-head" style="margin:0 0 10px;padding:0"><h2>Open team requests</h2><span class="count" id="teamCount"></span></div>
+  <div id="teamsList" style="display:grid;gap:14px"></div>
+</div>
+
+<!-- resources -->
+<div class="res-grid" id="resourcesView"></div>
+
+<!-- detail modal -->
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+
+<!-- AUTH GATE -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <span class="logo" id="gateLogo"></span>
+    <h2 id="gateTitle">Create your account</h2>
+    <p class="sub" id="gateSub">Join HackHunt to save events, get reminders & personalized picks.</p>
+    <div class="seg">
+      <button id="segSignup" class="on" onclick="setMode('signup')">Sign up</button>
+      <button id="segLogin" onclick="setMode('login')">Log in</button>
+    </div>
+    <div id="gbtnSlot"></div>
+    <button class="gbtn" id="gFallback" onclick="googleAuth()">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.1 0 24 0 14.6 0 6.4 5.4 2.5 13.3l7.8 6.1C12.2 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-3.9 6.9-9.7 6.9-17.4z"/><path fill="#FBBC05" d="M10.3 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.8-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.5 10.7l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.5l-7.3-5.7c-2 1.4-4.7 2.3-7.7 2.3-6.4 0-11.8-3.7-13.7-9.1l-7.8 6.1C6.4 42.6 14.6 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+    <a class="gbtn" style="background:#1f2328;color:#fff;margin-top:10px;text-decoration:none" href="/auth/github">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.9 10.9c.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 5 18.3 5.3 18.3 5.3c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+      Continue with GitHub
+    </a>
+    <div class="divider">or</div>
+    <div class="field" id="nameField"><label>Full name</label><input id="gName" placeholder="Your name"></div>
+    <div class="field"><label>Email</label><input id="gEmail" type="email" placeholder="you@college.edu"></div>
+    <label id="consentRow" style="display:flex;gap:9px;align-items:flex-start;margin-top:14px;text-align:left;font-size:.8rem;color:var(--muted);cursor:pointer">
+      <input type="checkbox" id="gConsent" style="margin-top:3px">
+      <span>I agree to the <a href="/terms.html" target="_blank" style="color:var(--accent-2)">Terms</a> and
+      <a href="/privacy.html" target="_blank" style="color:var(--accent-2)">Privacy Policy</a>, and consent to my
+      data being processed as described (DPDP Act, 2023).</span>
+    </label>
+    <button class="btn primary" style="width:100%;justify-content:center;margin-top:16px;padding:13px" onclick="emailAuth()">
+      <span id="gateBtnText">Create account</span>
+    </button>
+    <p class="note">No password needed — a simple student profile. For real Google/GitHub sign-in, add your OAuth keys (see DEPLOY.md).</p>
+  </div>
+</div>
+
+<button class="toTop" id="toTop" data-i="arrowUp"></button>
+<div class="toast" id="toast"></div>
+<footer>HackHunt India · aggregates public listings · always confirm details on the official event page.<br>
+<a href="/terms.html" target="_blank" style="color:var(--accent-2)">Terms</a> ·
+<a href="/privacy.html" target="_blank" style="color:var(--accent-2)">Privacy</a></footer>
+
+<script>
+// ===================== ICONS (inline SVG, professional) =====================
+const P={search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+refresh:'<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+user:'<circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/>',
+heart:'<path d="M19 14c1.5-1.5 3-3.4 3-5.5A5.5 5.5 0 0 0 12 5 5.5 5.5 0 0 0 2 8.5c0 2.1 1.5 4 3 5.5l7 7Z"/>',
+calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
+external:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+zap:'<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/>',
+ticket:'<path d="M3 9a3 3 0 0 0 0 6v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2a3 3 0 0 0 0-6V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"/><path d="M13 5v14"/>',
+book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>',
+building:'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>',
+landmark:'<path d="M3 22h18M5 18v-7M10 18v-7M14 18v-7M19 18v-7M12 2 3 7h18Z"/>',
+globe:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2c2.5 2.7 4 6.3 4 10s-1.5 7.3-4 10c-2.5-2.7-4-6.3-4-10s1.5-7.3 4-10Z"/>',
+trophy:'<path d="M6 9a6 6 0 0 0 12 0V3H6Z"/><path d="M6 4H3v2a3 3 0 0 0 3 3M18 4h3v2a3 3 0 0 1-3 3M9 21h6M12 17v4"/>',
+pin:'<path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/>',
+clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+users:'<circle cx="9" cy="8" r="3.5"/><path d="M2 21v-1a6 6 0 0 1 12 0v1M17 5.5a3.5 3.5 0 0 1 0 6.9M22 21v-1a6 6 0 0 0-4-5.6"/>',
+x:'<path d="M18 6 6 18M6 6l12 12"/>',
+arrowUp:'<path d="M12 19V5M5 12l7-7 7 7"/>',
+filter:'<path d="M3 5h18M6 12h12M10 19h4"/>',
+star:'<path d="m12 2 3 7h7l-5.5 4 2 7L12 17l-6.5 4 2-7L2 9h7Z"/>',
+check:'<path d="M20 6 9 17l-5-5"/>',
+logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+sparkles:'<path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3Z"/><path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z"/>',
+layers:'<path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 12 10 5 10-5M2 17l10 5 10-5"/>',
+tag:'<path d="M3 7v5l9 9 8-8-9-9H3Z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+menu:'<path d="M3 6h18M3 12h18M3 18h18"/>',
+shield:'<path d="M12 3 4 6v6c0 5 3.5 7.5 8 9 4.5-1.5 8-4 8-9V6l-8-3Z"/>',
+cloud:'<path d="M6 19a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.6A4 4 0 0 1 18 19H6Z"/>',
+cpu:'<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+leaf:'<path d="M11 20A7 7 0 0 1 4 13C4 7 11 3 20 4c1 9-3 16-9 16Z"/><path d="M4 21c4-5 8-7 13-8"/>',
+phone:'<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+gamepad:'<path d="M6 11h4M8 9v4M15 11h.01M18 13h.01"/><rect x="2" y="6" width="20" height="12" rx="4"/>',
+coin:'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.5h-3a1.8 1.8 0 0 0 0 3.5h4"/>',
+mic:'<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+verified:'<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+};
+function svg(name,extra){return `<svg class="ic ${extra||''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${P[name]||''}</svg>`}
+function iconsInit(scope){(scope||document).querySelectorAll('[data-i]').forEach(el=>{el.innerHTML=svg(el.dataset.i);el.removeAttribute('data-i');});}
+
+// ===================== CONFIG =====================
+const GOOGLE_CLIENT_ID = "";  // paste your OAuth Client ID for real Google sign-in (see README)
+const BASE = location.protocol.startsWith("http") ? "" : "http://localhost:5050";
+const API = BASE + "/api/hackathons";
+const API_COMMUNITY = BASE + "/api/community";
+const API_AUTH = BASE + "/api/auth";
+const API_SAVE = BASE + "/api/save";
+const API_HISTORY = BASE + "/api/history";
+const API_TEAMS = BASE + "/api/teams";
+
+// ===================== STATE =====================
+let ALL=[], COMMUNITY=[], FILTERED=[], commLoaded=false, activeTab="hackathons";
+let HISTORY=[], histLoaded=false, TEAMS=[];
+let activeCat="All", activePlat="All", activeTheme="All", activeQuick="All", q="", sortBy="recommended";
+let USER=JSON.parse(localStorage.getItem("hh_user")||"null");
+let SAVED=new Set(JSON.parse(localStorage.getItem("hh_saved")||"[]"));
+let authMode="signup";
+
+const CATS=[["All","layers"],["Hackathon","zap"],["Ideathon","sparkles"],["Hiring Challenge","building"],["Government","landmark"],["Wildlife / Climate","leaf"]];
+const CAT_COLORS={"Hackathon":"#7c5cff","Ideathon":"#19e3c7","Hiring Challenge":"#ff5c92","Government":"#ffb13b","Wildlife / Climate":"#34d36b","Conference":"#5c8cff","Meetup":"#19e3c7"};
+const CAT_ICON={"Hackathon":"zap","Ideathon":"sparkles","Hiring Challenge":"building","Government":"landmark","Wildlife / Climate":"leaf","Conference":"mic","Meetup":"users"};
+const PLATS=["All","Unstop","Devpost","Devfolio","Hack2skill","Devnovate","Internshala"];
+const QUICK=[["All","sparkles","All"],["Soon","clock","Closing soon"],["MNC","building","MNC / Big Tech"],["Government","landmark","Government"],["Online","globe","Online"],["Prize","trophy","Has prize"]];
+const _U="https://images.unsplash.com/",_Q="?auto=format&fit=crop&w=640&q=70";
+const THEME_IMG={"AI/ML":_U+"photo-1677442136019-21780ecad995"+_Q,"Web3":_U+"photo-1639762681485-074b7f938ba0"+_Q,"Cybersecurity":_U+"photo-1550751827-4bd374c3f58b"+_Q,"Mobile":_U+"photo-1512941937669-90a1b58e7e9c"+_Q,"Cloud/DevOps":_U+"photo-1451187580459-43490279c0fa"+_Q,"FinTech":_U+"photo-1559526324-4b87b5e36e44"+_Q,"HealthTech":_U+"photo-1530497610245-94d3c16cda28"+_Q,"Climate":_U+"photo-1497435334941-8c899ee9e8e9"+_Q,"Wildlife":_U+"photo-1474511320723-9a56873867b5"+_Q,"Gaming":_U+"photo-1542751371-adc38448a05e"+_Q,"Open Innovation":_U+"photo-1540575467063-178a50c2df87"+_Q};
+const CAT_IMG={"Hackathon":_U+"photo-1504384308090-c894fdcc538d"+_Q,"Hiring Challenge":_U+"photo-1521737604893-d14cc237f11d"+_Q,"Government":_U+"photo-1529107386315-e1a2ed48a620"+_Q,"Ideathon":_U+"photo-1522071820081-009f0129c71c"+_Q,"Wildlife / Climate":_U+"photo-1441974231531-c6227db76b6e"+_Q,"Conference":_U+"photo-1505373877841-8d25f7d46678"+_Q,"Meetup":_U+"photo-1556761175-5973dc0f32e7"+_Q};
+function imgFor(h){if(h.image&&/^https?:/.test(h.image))return h.image;return THEME_IMG[h.themes&&h.themes[0]]||CAT_IMG[h.category]||CAT_IMG["Hackathon"];}
+const PLATFORM_HOME={Unstop:"https://unstop.com/hackathons",Devpost:"https://devpost.com/hackathons",Devfolio:"https://devfolio.co/hackathons",Hack2skill:"https://hack2skill.com/explore",Devnovate:"https://devnovate.co/",Internshala:"https://internshala.com/hackathons/",Community:"https://www.meetup.com/"};
+const THEME_ART={"AI/ML":["cpu","#7c5cff","#19e3c7"],"Web3":["coin","#ff8a3b","#ff5c92"],"Climate":["leaf","#34d36b","#19e3c7"],"Wildlife":["leaf","#34d36b","#ffb13b"],"FinTech":["coin","#19e3c7","#7c5cff"],"HealthTech":["shield","#ff5c92","#7c5cff"],"Cybersecurity":["shield","#5c7cff","#19e3c7"],"IoT/Hardware":["cpu","#ffb13b","#ff5c92"],"Cloud/DevOps":["cloud","#5cb8ff","#7c5cff"],"AR/VR":["globe","#b15cff","#ff5c92"],"Mobile":["phone","#19e3c7","#34d36b"],"Gaming":["gamepad","#ff5c92","#7c5cff"],"EdTech":["book","#ffb13b","#19e3c7"],"Open Innovation":["sparkles","#ffd56b","#ff8a3b"]};
+const ALL_THEMES=Object.keys(THEME_ART);
+
+const $=s=>document.querySelector(s);
+const grid=$("#grid");
+
+// ===================== HELPERS =====================
+function toast(msg,icon){const t=$("#toast");t.innerHTML=svg(icon||"check")+`<span>${msg}</span>`;t.classList.add("show");
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2600);}
+function fmt(d){if(!d)return"TBA";if(/^\d{4}-\d{2}-\d{2}/.test(d)){try{return new Date(d).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});}catch(e){return d;}}return d;}
+function daysLeft(d){if(!d||!/^\d{4}-\d{2}-\d{2}/.test(d))return null;
+  const diff=Math.ceil((new Date(d).setHours(23,59,59)-Date.now())/86400000);return diff;}
+function lastDate(h){for(const k of["ends","deadline","starts"]){const v=h[k];if(v&&/^\d{4}-\d{2}-\d{2}/.test(v))return new Date(v);}return null;}
+function isEnded(h){const d=lastDate(h);if(!d)return false;d.setHours(23,59,59);return d.getTime()<Date.now();}
+function countdownHTML(h){const dl=daysLeft(h.deadline);if(dl===null)return"";
+  if(dl<0)return`<span class="countdown ended">${svg("clock")}Closed</span>`;
+  if(dl===0)return`<span class="countdown urgent">${svg("clock")}Last day</span>`;
+  const cls=dl<=3?"urgent":dl<=10?"soon":"calm";
+  return`<span class="countdown ${cls}">${svg("clock")}${dl}d left</span>`;}
+function prizeVal(h){const s=(h.prize||"")+"";const usd=/\$\s?([\d,]+)/.exec(s);if(usd)return parseInt(usd[1].replace(/,/g,""))*84;
+  const inr=/₹\s?([\d,]+)/.exec(s);if(inr)return parseInt(inr[1].replace(/,/g,""));return s?1:0;}
+function eventUrl(h){const u=h.type?(h.ticket_url||h.url):(h.url||h.ticket_url);
+  if(u&&/^https?:/.test(u))return u; if(u&&u.length>3)return "https://"+u.replace(/^\/+/,"");
+  return PLATFORM_HOME[h.platform]||"https://unstop.com/hackathons";}
+function skeletons(n=8){grid.innerHTML="";for(let i=0;i<n;i++){const d=document.createElement("div");d.className="skel";grid.appendChild(d);}}
+
+// client-side enrichment for demo/community (server sets these for live data)
+const C_MNC=["google","microsoft","amazon","meta","apple","ibm","intel","nvidia","oracle","sap","adobe","cisco","samsung","flipkart","walmart","swiggy","zomato","paytm","phonepe","razorpay","tcs","infosys","wipro","accenture","deloitte","jpmorgan","goldman","mercedes","bosch","siemens","mastercard","visa","atlassian","stripe","linkedin","tesla","mnc"];
+const C_THEME={"AI/ML":["ai","ml","genai","data","llm"],"Web3":["web3","blockchain","crypto","ethereum","nft"],"Climate":["climate","sustain","green","energy","carbon"],"Wildlife":["wildlife","conservation","tiger","ocean","nature","biodiversity"],"FinTech":["fintech","finance","payment","banking"],"HealthTech":["health","medical","biotech"],"Cybersecurity":["cyber","security"],"IoT/Hardware":["iot","robotics","hardware","drone"],"Cloud/DevOps":["cloud","devops","aws","azure"],"Gaming":["game","gaming"],"Open Innovation":["open innovation","open"]};
+function clientEnrich(h){
+  const b=(h.title+" "+(h.organizer||"")+" "+(h.tags||[]).join(" ")).toLowerCase();
+  if(h.mnc===undefined)h.mnc=C_MNC.some(n=>b.includes(n));
+  if(!h.themes)h.themes=Object.entries(C_THEME).filter(([t,ks])=>ks.some(k=>b.includes(k))).map(([t])=>t);
+  return h;
+}
+
+// ===================== DATA SOURCE PER TAB =====================
+function sourceList(){
+  if(activeTab==="history")return HISTORY;
+  if(activeTab==="community")return COMMUNITY.filter(h=>!isEnded(h));
+  if(activeTab==="saved")return [...ALL,...COMMUNITY,...HISTORY].filter(h=>SAVED.has(h.id));
+  return ALL.filter(h=>!isEnded(h));   // hide ended from live list
+}
+function findById(id){return [...ALL,...COMMUNITY,...HISTORY].find(h=>h.id===id);}
+function topThemes(){const c={};sourceList().forEach(h=>(h.themes||[]).forEach(t=>c[t]=(c[t]||0)+1));
+  return ["All",...Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10)];}
+function score(h){return USER&&USER.interests?(h.themes||[]).filter(t=>USER.interests.includes(t)).length:0;}
+
+// ===================== CHIPS =====================
+function buildChips(){
+  $("#quickChips").innerHTML=QUICK.map(([v,ic,l])=>`<button class="chip ${v===activeQuick?'active':''}" data-quick="${v}">${svg(ic)}${l}</button>`).join("");
+  $("#catChips").innerHTML=CATS.map(([c,ic])=>`<button class="chip ${c===activeCat?'active':''}" data-cat="${c}">${svg(ic)}${c}</button>`).join("");
+  $("#themeChips").innerHTML=topThemes().map(t=>`<button class="chip theme ${t===activeTheme?'active':''}" data-theme="${t}">${t==="All"?svg("tag")+"All":(THEME_ART[t]?svg(THEME_ART[t][0]):"")+t}</button>`).join("");
+  $("#platChips").innerHTML=PLATS.map(p=>`<button class="chip ${p===activePlat?'active':''}" data-plat="${p}">${p}</button>`).join("");
+  $("#quickChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{activeQuick=b.dataset.quick;buildChips();render();});
+  $("#catChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{activeCat=b.dataset.cat;buildChips();render();});
+  $("#themeChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{activeTheme=b.dataset.theme;buildChips();render();});
+  $("#platChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{activePlat=b.dataset.plat;buildChips();render();});
+}
+
+function passQuick(h){switch(activeQuick){
+  case"Soon":{const d=daysLeft(h.deadline);return d!==null&&d>=0&&d<=7;}
+  case"MNC":return !!h.mnc;
+  case"Government":return h.category==="Government"||h.govt;
+  case"Online":return (h.mode||"").toLowerCase().includes("online")||(h.location||"").toLowerCase().includes("online");
+  case"Prize":return !!(h.prize&&String(h.prize).trim());
+  default:return true;}}
+
+function applyFilters(){
+  const isComm=activeTab==="community";
+  FILTERED=sourceList().filter(h=>{
+    if(!passQuick(h))return false;
+    if(!isComm&&activeCat!=="All"&&h.category!==activeCat)return false;
+    if(!isComm&&activePlat!=="All"&&h.platform!==activePlat)return false;
+    if(activeTheme!=="All"&&!(h.themes||[]).includes(activeTheme))return false;
+    if(q){const blob=(h.title+" "+(h.organizer||"")+" "+(h.tags||[]).join(" ")+" "+(h.prize||"")+" "+(h.location||"")).toLowerCase();
+      if(!blob.includes(q))return false;}
+    return true;});
+  const big=9e15;
+  const dkey=h=>{const d=daysLeft(h.deadline);return d===null?big:(d<0?big-1:d);};
+  if(sortBy==="deadline")FILTERED.sort((a,b)=>dkey(a)-dkey(b));
+  else if(sortBy==="prize")FILTERED.sort((a,b)=>prizeVal(b)-prizeVal(a));
+  else if(sortBy==="popular")FILTERED.sort((a,b)=>(b.participants||0)-(a.participants||0));
+  else if(USER&&USER.interests&&USER.interests.length)FILTERED.sort((a,b)=>score(b)-score(a));
+}
+
+// ===================== CARDS =====================
+function banner(h){
+  const art=THEME_ART[h.themes&&h.themes[0]]||[CAT_ICON[h.category]||"zap","#7c5cff","#19e3c7"];
+  const ribbon=h.mnc?`<span class="ribbon">${svg("building")}MNC</span>`:h.category==="Government"?`<span class="ribbon gov">${svg("landmark")}GOVT</span>`:'';
+  const fb=`this.closest('.banner').classList.add('gen');this.closest('.banner').style.background='linear-gradient(135deg,${art[1]},${art[2]})';this.closest('.banner').insertAdjacentHTML('beforeend','${svg(art[0],"b-ic").replace(/'/g,"\\'")}');this.remove();`;
+  return `<div class="banner"><img loading="lazy" src="${imgFor(h)}" alt="" onerror="${fb}">${ribbon}</div>`;
+}
+function genBg(cat){const a=THEME_ART[cat]||["zap","#7c5cff","#19e3c7"];return `linear-gradient(135deg,${a[1]},${a[2]})`;}
+window.genBg=genBg;
+
+function card(h,i){
+  const col=CAT_COLORS[h.category]||"#7c5cff";
+  const tags=(h.tags||[]).filter(t=>t!=="MNC").slice(0,3).map(t=>`<span class="tag">${t}</span>`).join("");
+  const saved=SAVED.has(h.id);
+  const rec=score(h)>0?`<span class="rec">${svg("star")}For you</span>`:'';
+  const money=h.type?(h.price?`<div class="money">${svg("ticket")}${h.price}</div>`:'')
+                    :(h.prize?`<div class="money">${svg("trophy")}${h.prize}</div>`:'');
+  const badge=h.type?`<span class="pill">${h.type}</span>`:`<span class="badge" style="background:${col}">${svg(CAT_ICON[h.category]||"zap")}${h.category}</span>`;
+  const flag=h.verified?`<span class="sample-flag verified">${svg("verified")}Verified</span>`:(h.sample?'<span class="sample-flag">Curated</span>':'');
+  return `<div class="card" style="animation-delay:${i*35}ms" data-id="${h.id}">
+    ${flag}
+    <button class="bookmark ${saved?'on':''}" data-bm="${h.id}" title="Save">${svg("heart")}</button>
+    ${banner(h)}
+    <div class="body">
+      <div class="top"><span class="pill">${h.platform}</span>${badge}</div>
+      <h3>${h.title||"Untitled"}</h3>
+      <div class="org">${h.organizer||""} ${rec}</div>
+      <div class="meta">
+        ${countdownHTML(h)||`<span class="m">${svg("clock")}${fmt(h.deadline||h.starts)}</span>`}
+        <span class="m">${svg("pin")}${h.city||h.location||h.mode||"Online"}</span>
+        ${h.participants?`<span class="m">${svg("users")}${Number(h.participants).toLocaleString("en-IN")}</span>`:""}
+      </div>
+      ${money}
+      <div class="tags">${tags}</div>
+      <div class="card-actions">
+        <a class="btn primary" href="${eventUrl(h)}" target="_blank" rel="noopener" data-stop>${svg(h.type?"ticket":"external")}${h.type?"Tickets":"Open event"}</a>
+        <button class="btn" data-details="${h.id}">Details</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render(){
+  applyFilters();
+  $("#resultCount").textContent=FILTERED.length?`${FILTERED.length} found`:"";
+  if(!FILTERED.length){
+    const msg=activeTab==="history"?"No past events archived yet. As events end, they'll be saved here automatically."
+      :activeTab==="saved"?"No saved events yet. Tap the heart on any card to save it.":"No matches. Try a different filter or search.";
+    grid.innerHTML=`<div class="empty">${svg(activeTab==="history"?"clock":"search")}<div>${msg}</div></div>`;return;}
+  grid.innerHTML=FILTERED.map(card).join("");
+  grid.querySelectorAll(".card").forEach(c=>{
+    c.onclick=e=>{if(e.target.closest("[data-stop]")||e.target.closest(".bookmark"))return;openModal(c.dataset.id);};
+    c.onmousemove=e=>{const r=c.getBoundingClientRect();
+      const rx=((e.clientY-r.top)/r.height-.5)*-4,ry=((e.clientX-r.left)/r.width-.5)*4;
+      c.style.transform=`translateY(0) rotateX(${rx}deg) rotateY(${ry}deg)`;};
+    c.onmouseleave=()=>c.style.transform="translateY(0)";
+  });
+  grid.querySelectorAll(".bookmark").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleSave(b.dataset.bm);});
+  grid.querySelectorAll("[data-details]").forEach(b=>b.onclick=e=>{e.stopPropagation();openModal(b.dataset.details);});
+}
+
+// ===================== MODAL =====================
+function gcalLink(h){const clean=s=>(s||"").replace(/-/g,"").slice(0,8);
+  const sd=clean(h.starts||h.deadline),ed=clean(h.ends||h.starts||h.deadline);if(!sd)return null;
+  const p=new URLSearchParams({action:"TEMPLATE",text:h.title,dates:`${sd}/${ed||sd}`,
+    details:`${h.organizer||""} — via HackHunt India\n${eventUrl(h)}`,location:h.location||h.city||"Online"});
+  return "https://calendar.google.com/calendar/render?"+p.toString();}
+
+function openModal(id){
+  const h=findById(id);if(!h)return;const col=CAT_COLORS[h.category]||"#7c5cff";
+  const saved=SAVED.has(h.id);const gcal=gcalLink(h);
+  const art=THEME_ART[h.themes&&h.themes[0]]||[CAT_ICON[h.category]||"zap","#7c5cff","#19e3c7"];
+  const fb=`this.closest('.modal-banner').classList.add('gen');this.closest('.modal-banner').style.background='linear-gradient(135deg,${art[1]},${art[2]})';this.closest('.modal-banner').insertAdjacentHTML('beforeend','${svg(art[0],"b-ic").replace(/'/g,"\\'")}');this.remove();`;
+  $("#modal").innerHTML=`
+    <button class="close" onclick="closeModal()">${svg("x")}</button>
+    <div class="modal-banner"><img src="${imgFor(h)}" alt="" onerror="${fb}"></div>
+    <div class="modal-body">
+      <div class="top" style="margin-bottom:8px"><span class="pill">${h.platform}</span>
+        ${h.type?`<span class="pill">${h.type}</span>`:`<span class="badge" style="background:${col}">${svg(CAT_ICON[h.category]||"zap")}${h.category}</span>`}</div>
+      <h2>${h.title}</h2>
+      <div class="org" style="margin:4px 0 14px">${h.organizer||""}</div>
+      <div class="row"><span>${svg("globe")}Mode</span><span>${h.mode||"Online"}</span></div>
+      <div class="row"><span>${svg("pin")}Location</span><span>${h.location||h.city||"Online"}</span></div>
+      <div class="row"><span>${svg("calendar")}Starts</span><span>${fmt(h.starts)}</span></div>
+      <div class="row"><span>${svg("calendar")}Ends</span><span>${fmt(h.ends)}</span></div>
+      <div class="row"><span>${svg("clock")}${h.type?'Register by':'Deadline'}</span><span>${fmt(h.deadline)}</span></div>
+      <div class="row"><span>${svg(h.dates_confirmed?"verified":"clock")}Dates</span><span style="color:${h.dates_confirmed?'#34d36b':'var(--accent-4)'}">${h.dates_confirmed?"Confirmed":"Approximate — confirm on site"}</span></div>
+      ${h.price?`<div class="row"><span>${svg("ticket")}Ticket</span><span>${h.price}</span></div>`:""}
+      ${h.prize?`<div class="row"><span>${svg("trophy")}Prize</span><span>${h.prize}</span></div>`:""}
+      ${h.participants?`<div class="row"><span>${svg("users")}Registered</span><span>${Number(h.participants).toLocaleString("en-IN")}</span></div>`:""}
+      ${(h.tags||[]).filter(t=>t!=="MNC").length?`<div class="tags" style="margin-top:14px">${h.tags.filter(t=>t!=="MNC").map(t=>`<span class="tag">${t}</span>`).join("")}</div>`:""}
+      <a class="btn primary cta" href="${eventUrl(h)}" target="_blank" rel="noopener">${svg(h.type?"ticket":"external")}${h.type?"Get tickets":"Open event page"}</a>
+      <div class="mini-actions">
+        <button class="btn" onclick="toggleSave('${h.id}');openModal('${h.id}')">${svg("heart")}${saved?"Saved":"Save"}</button>
+        ${gcal?`<a class="btn" href="${gcal}" target="_blank" rel="noopener">${svg("calendar")}Google</a>`:""}
+        <button class="btn" onclick="downloadICS('${h.id}')">${svg("calendar")}.ics</button>
+        <button class="btn" onclick="shareEvent('${h.id}')">${svg("share")}Share</button>
+      </div>
+    </div>`;
+  $("#overlay").classList.add("show");
+}
+function closeModal(){$("#overlay").classList.remove("show");}
+window.closeModal=closeModal;
+$("#overlay").onclick=e=>{if(e.target===$("#overlay"))closeModal();};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
+function downloadICS(id){const h=findById(id);if(!h)return;
+  const clean=s=>(s||"").replace(/-/g,"").slice(0,8);
+  const sd=clean(h.starts||h.deadline),ed=clean(h.ends||h.starts||h.deadline);
+  if(!sd){toast("No date available",'calendar');return;}
+  const esc=s=>(s||"").replace(/[,;\\]/g,"\\$&").replace(/\n/g," ");
+  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//HackHunt India//EN","BEGIN:VEVENT",
+    "UID:"+h.id+"@hackhunt","DTSTART;VALUE=DATE:"+sd,"DTEND;VALUE=DATE:"+ed,
+    "SUMMARY:"+esc(h.title),"DESCRIPTION:"+esc((h.organizer||"")+" — via HackHunt. "+eventUrl(h)),
+    "LOCATION:"+esc(h.location||h.city||"Online"),"URL:"+eventUrl(h),"END:VEVENT","END:VCALENDAR"].join("\r\n");
+  const a=document.createElement("a");
+  a.href="data:text/calendar;charset=utf-8,"+encodeURIComponent(ics);
+  a.download=(h.title||"event").replace(/[^a-z0-9]+/gi,"-").toLowerCase()+".ics";
+  document.body.appendChild(a);a.click();a.remove();toast("Calendar file downloaded",'calendar');}
+window.downloadICS=downloadICS;
+function shareEvent(id){const h=findById(id);if(!h)return;const url=eventUrl(h);
+  if(navigator.share)navigator.share({title:h.title,text:h.title,url});
+  else{navigator.clipboard.writeText(`${h.title} — ${url}`);toast("Link copied",'share');}}
+window.shareEvent=shareEvent;
+
+// ===================== SAVE =====================
+function persistSaved(){localStorage.setItem("hh_saved",JSON.stringify([...SAVED]));}
+function toggleSave(id){
+  const on=!SAVED.has(id);
+  if(on){SAVED.add(id);toast("Saved",'heart');}else{SAVED.delete(id);toast("Removed from saved",'heart');}
+  persistSaved();render();
+  // sync to DB (best-effort)
+  if(USER&&USER.email){const ev=findById(id);
+    fetch(API_SAVE,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email:USER.email,event_id:id,event:ev,on})}).catch(()=>{});}
+}
+window.toggleSave=toggleSave;
+
+// ===================== STATS =====================
+function updateStats(){
+  $("#st-total").textContent=ALL.length;
+  $("#st-online").textContent=ALL.filter(h=>(h.mode||"").toLowerCase().includes("online")||(h.location||"").toLowerCase().includes("online")).length;
+  $("#st-mnc").textContent=ALL.filter(h=>h.mnc).length;
+  $("#st-gov").textContent=ALL.filter(h=>h.category==="Government").length;
+}
+function showSources(meta){if(!meta){$("#srcStatus").innerHTML="";return;}
+  $("#srcStatus").innerHTML=meta.map(m=>{const c=m.status==="live"?"#34d36b":m.status==="error"?"#ff5c92":"#ffb13b";
+    return `<span><span class="dot" style="background:${c}"></span>${m.platform}: ${m.count}</span>`;}).join("");}
+
+// ===================== LOAD =====================
+async function load(refresh){
+  // 1) instant paint from localStorage cache (stale-while-revalidate)
+  let painted=false;
+  try{const c=JSON.parse(localStorage.getItem("hh_cache")||"null");
+    if(c&&c.data&&c.data.length){ALL=c.data;showSources(c.sources);updateStats();
+      if(activeTab==="hackathons"){buildChips();render();}painted=true;}
+  }catch(e){}
+  if(!painted)skeletons();
+  // 2) fetch fresh in background
+  try{const r=await fetch(API+(refresh?"?refresh=1":""),{cache:"no-store"});if(!r.ok)throw 0;
+    const d=await r.json();ALL=(d.hackathons||[]).map(clientEnrich);showSources(d.sources);
+    try{localStorage.setItem("hh_cache",JSON.stringify({data:ALL,sources:d.sources,ts:Date.now()}));}catch(e){}
+    toast(`Loaded ${ALL.length} opportunities`,'check');}
+  catch(e){
+    if(!painted){ALL=DEMO.map(clientEnrich);
+      $("#srcStatus").innerHTML=`<span><span class="dot" style="background:#ffb13b"></span>Backend offline — demo data. Run the Python backend for live results.</span>`;
+      toast("Demo mode — backend offline",'refresh');}
+    else toast("Showing cached data",'refresh');}
+  updateStats();if(activeTab==="hackathons"){buildChips();render();}
+}
+async function loadCommunity(){skeletons(6);
+  try{const r=await fetch(API_COMMUNITY,{cache:"no-store"});if(!r.ok)throw 0;COMMUNITY=(await r.json()).events||[];}
+  catch(e){COMMUNITY=COMMUNITY_DEMO;}
+  COMMUNITY=COMMUNITY.map(clientEnrich);commLoaded=true;buildChips();render();}
+async function loadHistory(){skeletons(6);
+  try{const r=await fetch(API_HISTORY,{cache:"no-store"});if(!r.ok)throw 0;HISTORY=((await r.json()).events||[]).map(clientEnrich);}
+  catch(e){HISTORY=[];}
+  histLoaded=true;buildChips();render();}
+
+// ===================== TEAM FINDER =====================
+async function loadTeams(){
+  $("#teamsList").innerHTML=`<div class="empty">${svg("users")}<div>Loading team requests…</div></div>`;
+  try{const r=await fetch(API_TEAMS,{cache:"no-store"});const d=await r.json();TEAMS=d.teams||[];}
+  catch(e){TEAMS=[];}
+  renderTeams();
+}
+function renderTeams(){
+  $("#teamCount").textContent=TEAMS.length?`${TEAMS.length} open`:"";
+  if(!TEAMS.length){$("#teamsList").innerHTML=`<div class="empty">${svg("users")}<div>No open requests yet. Be the first to post above!</div></div>`;return;}
+  $("#teamsList").innerHTML=TEAMS.map(t=>`
+    <div class="pcard" style="padding:18px">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <h3 style="font-size:1.05rem">${t.event||"Hackathon"}</h3>
+        <span class="pill">${(t.skills||[]).length?t.skills.length+" skills":"Team"}</span>
+      </div>
+      <div class="org" style="margin:6px 0">${t.name||"A student"}${t.role?` · ${t.role}`:""}</div>
+      ${t.looking_for?`<div class="m" style="margin:4px 0">${svg("users")}Looking for: ${t.looking_for}</div>`:""}
+      ${t.message?`<p style="color:var(--muted);font-size:.9rem;margin:8px 0">${t.message}</p>`:""}
+      ${(t.skills||[]).length?`<div class="tags" style="margin:8px 0">${t.skills.map(s=>`<span class="tag">${s}</span>`).join("")}</div>`:""}
+      <a class="btn primary" style="margin-top:8px" href="${contactHref(t.contact)}" target="_blank" rel="noopener">${svg("share")}Connect</a>
+    </div>`).join("");
+}
+function contactHref(c){c=(c||"").trim();
+  if(/^https?:/.test(c))return c;
+  if(/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c))return "mailto:"+c;
+  if(/^\+?\d[\d\s-]{6,}$/.test(c))return "https://wa.me/"+c.replace(/[^\d]/g,"");
+  return "#";}
+async function postTeam(){
+  if(!USER){openAuth();return;}
+  const body={email:USER.email,name:USER.name,picture:USER.picture||"",
+    event:$("#tEvent").value.trim(),role:$("#tRole").value.trim(),
+    looking_for:$("#tLooking").value.trim(),
+    skills:$("#tSkills").value.split(",").map(s=>s.trim()).filter(Boolean),
+    message:$("#tMsg").value.trim(),contact:$("#tContact").value.trim()};
+  if(!body.event||!body.contact){toast("Add the event and a contact",'users');return;}
+  try{const r=await fetch(API_TEAMS,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const d=await r.json();TEAMS=d.teams||TEAMS;renderTeams();
+    ["tEvent","tRole","tLooking","tSkills","tMsg","tContact"].forEach(id=>$("#"+id).value="");
+    toast("Team request posted!",'check');}
+  catch(e){toast("Couldn't post — is the backend running?",'users');}
+}
+
+// ===================== TABS =====================
+const TITLES={hackathons:"Hackathons & Challenges",community:"Conferences, Meetups & Tickets",saved:"Saved events",history:"Past events (archive)"};
+function switchTab(tab){
+  activeTab=tab;activeCat="All";activePlat="All";activeTheme="All";activeQuick="All";if($("#search"))$("#search").value="",q="";
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
+  $("#nav").classList.remove("open");
+  const isList=["hackathons","community","saved","history"].includes(tab);
+  $("#controls").classList.toggle("hide",!isList);
+  $("#resultHead").classList.toggle("hide",!isList);
+  $("#grid").classList.toggle("hide",!isList);
+  $("#srcStatus").classList.toggle("hide",tab!=="hackathons");
+  $("#profileView").classList.toggle("show",tab==="profile");
+  $("#teamsView").classList.toggle("show",tab==="teams");
+  $("#resourcesView").classList.toggle("show",tab==="resources");
+  $("#catRow").style.display=(tab==="community"||tab==="history")?"none":"";
+  $("#platRow").style.display=tab==="community"?"none":"";
+  if(isList)$("#resultTitle").textContent=TITLES[tab];
+  if(tab==="community"&&!commLoaded){loadCommunity();return;}
+  if(tab==="history"){loadHistory();return;}
+  if(tab==="teams"){if(!USER){openAuth();return;}loadTeams();return;}
+  if(tab==="profile"){renderProfile();return;}
+  if(tab==="resources"){renderResources();return;}
+  localStorage.setItem("hh_tab",tab);
+  buildChips();render();
+}
+window.switchTab=switchTab;
+
+// ===================== AUTH GATE =====================
+function setMode(m){authMode=m;
+  $("#segSignup").classList.toggle("on",m==="signup");$("#segLogin").classList.toggle("on",m==="login");
+  $("#gateTitle").textContent=m==="signup"?"Create your account":"Welcome back";
+  $("#gateSub").textContent=m==="signup"?"Join HackHunt to save events, get reminders & personalized picks.":"Log in to access your saved events and picks.";
+  $("#gateBtnText").textContent=m==="signup"?"Create account":"Log in";
+  $("#nameField").style.display=m==="signup"?"":"none";}
+window.setMode=setMode;
+function showGate(){$("#gate").classList.add("show");document.body.style.overflow="hidden";}
+function hideGate(){$("#gate").classList.remove("show");document.body.style.overflow="";}
+function persistUser(){USER?localStorage.setItem("hh_user",JSON.stringify(USER)):localStorage.removeItem("hh_user");}
+function setUser(u){USER=u;persistUser();renderAuthState();hideGate();toast(`Welcome, ${u.name.split(" ")[0]}!`,'sparkles');render();
+  // register/login in the DB + pull server-saved bookmarks (best-effort)
+  fetch(API_AUTH,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(u)})
+    .then(r=>r.json()).then(d=>{if(d&&d.user&&Array.isArray(d.user.saved)){
+      d.user.saved.forEach(id=>SAVED.add(id));persistSaved();render();}}).catch(()=>{});}
+function emailAuth(){
+  const name=(authMode==="signup")?($("#gName").value||"").trim():(($("#gName").value||"").trim()||"Student");
+  const email=($("#gEmail").value||"").trim();
+  if(authMode==="signup"&&!name){toast("Please enter your name",'user');return;}
+  if(!email){toast("Please enter your email",'user');return;}
+  if(authMode==="signup"&&!$("#gConsent").checked){toast("Please accept Terms & Privacy to continue",'shield');return;}
+  setUser({name:name||email.split("@")[0],email,picture:"",interests:USER?.interests||[],college:"",year:"",consent:true});
+}
+window.emailAuth=emailAuth;
+function googleAuth(){if(GOOGLE_CLIENT_ID)return; // real button handles it
+  setUser({name:"Demo Student",email:"demo@student.in",picture:"",interests:[],college:"",year:""});}
+window.googleAuth=googleAuth;
+function initGoogle(){if(!GOOGLE_CLIENT_ID||!window.google)return;$("#gFallback").style.display="none";
+  google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:res=>{const p=JSON.parse(atob(res.credential.split(".")[1]));
+    setUser({name:p.name,email:p.email,picture:p.picture,interests:USER?.interests||[],college:"",year:""});}});
+  google.accounts.id.renderButton($("#gbtnSlot"),{theme:"filled_blue",size:"large",width:340,shape:"pill"});}
+window.addEventListener("load",()=>setTimeout(initGoogle,700));
+
+function renderAuthState(){
+  const a=$("#avatarBtn");
+  if(USER){a.style.display="grid";
+    if(USER.picture){a.style.backgroundImage=`url(${USER.picture})`;a.textContent="";}
+    else{a.style.backgroundImage="none";a.textContent=(USER.name||"U")[0].toUpperCase();}}
+  else a.style.display="none";
+}
+$("#avatarBtn").onclick=()=>switchTab("profile");
+
+// ===================== PROFILE =====================
+function renderProfile(){
+  if(!USER){showGate();return;}
+  $("#pName").textContent=USER.name;$("#pEmail").textContent=USER.email||"local profile";
+  $("#pCollege").value=USER.college||"";$("#pYear").value=USER.year||"";
+  $("#pSkills").value=(USER.skills||[]).join(", ");$("#pAch").value=(USER.achievements||[]).join(", ");
+  $("#pGithub").value=USER.github||"";$("#pLinkedin").value=USER.linkedin||"";
+  $("#interestPicker").innerHTML=ALL_THEMES.map(t=>`<span class="interest ${USER.interests.includes(t)?'on':''}" data-int="${t}">${svg(THEME_ART[t][0])}${t}</span>`).join("");
+  $("#interestPicker").querySelectorAll(".interest").forEach(el=>el.onclick=()=>{const t=el.dataset.int;
+    USER.interests.includes(t)?USER.interests=USER.interests.filter(x=>x!==t):USER.interests.push(t);el.classList.toggle("on");});
+}
+$("#saveProfile").onclick=()=>{if(!USER)return;
+  USER.college=$("#pCollege").value;USER.year=$("#pYear").value;
+  USER.skills=$("#pSkills").value.split(",").map(s=>s.trim()).filter(Boolean);
+  USER.achievements=$("#pAch").value.split(",").map(s=>s.trim()).filter(Boolean);
+  USER.github=$("#pGithub").value.trim();USER.linkedin=$("#pLinkedin").value.trim();
+  persistUser();
+  fetch(API_AUTH,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(USER)}).catch(()=>{});
+  toast("Profile saved — picks personalized",'check');switchTab("hackathons");};
+$("#postTeam").onclick=postTeam;
+$("#logoutBtn").onclick=()=>{USER=null;persistUser();renderAuthState();switchTab("hackathons");showGate();setMode("login");toast("Signed out",'logout');};
+
+// ===================== RESOURCES =====================
+const RESOURCES=[
+  ["trophy","#7c5cff","Win your first hackathon","Advice from 5 seasoned hackathon judges (Devpost).","https://info.devpost.com/blog/hackathon-judging-tips"],
+  ["cpu","#19e3c7","DSA & interview prep","Crack hiring challenges — patterns & practice sheets.","https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2/"],
+  ["sparkles","#ff5c92","Build with AI/ML fast","Free GenAI, LLM & ML hands-on for projects.","https://www.kaggle.com/learn"],
+  ["book","#ffb13b","Open source for students","Start contributing to real-world projects.","https://github.com/explore"],
+  ["star","#34d36b","GitHub Student Pack","Free dev tools, cloud credits & domains.","https://education.github.com/pack"],
+  ["cloud","#5c8cff","Google Cloud free tier","Free GCP credits & always-free products for builders.","https://cloud.google.com/free"],
+  ["tag","#b15cff","UI/UX for winning demos","Design clean interfaces fast with Figma.","https://www.figma.com/community"],
+  ["mic","#ff8a3b","Pitch like a pro","Tell a 3-minute story judges remember.","https://www.ycombinator.com/library"],
+];
+function renderResources(){
+  $("#resourcesView").innerHTML=RESOURCES.map(([ic,c,t,p,u])=>
+    `<a class="res" href="${u}" target="_blank" rel="noopener"><div class="r-ic" style="background:${c}">${svg(ic)}</div><h3>${t}</h3><p>${p}</p><span class="go">Open ${svg("external")}</span></a>`).join("");
+}
+
+// ===================== TOP / THEME / SEARCH / NAV =====================
+let st;$("#search").oninput=e=>{clearTimeout(st);st=setTimeout(()=>{q=e.target.value.toLowerCase().trim();render();},170);};
+$("#refreshBtn").onclick=()=>{commLoaded=false;COMMUNITY=[];load(true);};
+$("#themeBtn").onclick=()=>{const r=document.documentElement;const n=r.dataset.theme==="dark"?"light":"dark";r.dataset.theme=n;
+  localStorage.setItem("hh_theme",n);$("#themeBtn").innerHTML=svg(n==="dark"?"moon":"sun");};
+$("#menuBtn").onclick=()=>$("#nav").classList.toggle("open");
+$("#sortSel").onchange=e=>{sortBy=e.target.value;render();};
+$("#surpriseBtn").onclick=()=>{if(!FILTERED.length){toast("No events to pick from",'search');return;}
+  const h=FILTERED[Math.floor(Math.random()*FILTERED.length)];openModal(h.id);};
+document.querySelectorAll(".nav-btn").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+const toTop=$("#toTop");addEventListener("scroll",()=>toTop.classList.toggle("show",scrollY>500));toTop.onclick=()=>scrollTo({top:0,behavior:"smooth"});
+
+// ===================== LIVE UPDATES (real-time polling) =====================
+const POLL_MS=180000; // check for new events every 3 min while the tab is open
+async function livePoll(){
+  if(document.hidden)return;                 // pause when tab not visible
+  try{
+    const r=await fetch(API,{cache:"no-store"});const d=await r.json();
+    const fresh=(d.hackathons||[]).map(clientEnrich);
+    const known=new Set(ALL.map(h=>h.id));
+    const added=fresh.filter(h=>!known.has(h.id));
+    if(fresh.length){ALL=fresh;showSources(d.sources);updateStats();
+      try{localStorage.setItem("hh_cache",JSON.stringify({data:ALL,sources:d.sources,ts:Date.now()}));}catch(e){}
+      if(["hackathons","saved"].includes(activeTab)){buildChips();render();}}
+    if(added.length)toast(`${added.length} new ${added.length>1?"hackathons":"hackathon"} just added`,'sparkles');
+  }catch(e){/* offline — ignore */}
+}
+setInterval(livePoll,POLL_MS);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)livePoll();});
+
+// ===================== ANALYTICS (owner console) + MAINTENANCE =====================
+const API_TRACK=BASE+"/api/track", API_HEALTH=BASE+"/api/health";
+let SID=localStorage.getItem("hh_sid");if(!SID){SID="s-"+Math.random().toString(36).slice(2,11);localStorage.setItem("hh_sid",SID);}
+function track(kind,detail){try{fetch(API_TRACK,{method:"POST",headers:{"Content-Type":"application/json"},
+  keepalive:true,body:JSON.stringify({sid:SID,email:USER?.email||"",name:USER?.name||"Guest",
+    kind,detail:(detail||"").slice(0,200),path:activeTab})}).catch(()=>{});}catch(e){}}
+// presence heartbeat
+track("presence","opened site");
+setInterval(()=>{if(!document.hidden)track("presence","active");},15000);
+// click tracking (buttons, links, cards, nav)
+document.addEventListener("click",e=>{
+  const el=e.target.closest("a,button,.card,.nav-btn,.chip");if(!el)return;
+  const label=(el.dataset.tab||el.textContent||el.getAttribute("href")||el.title||"").trim().slice(0,60);
+  track("click",label);},true);
+// maintenance overlay
+async function checkMaintenance(){
+  try{const d=await (await fetch(API_HEALTH,{cache:"no-store"})).json();
+    if(d.maintenance){
+      document.body.innerHTML=`<div style="min-height:100vh;display:grid;place-items:center;text-align:center;padding:30px;font-family:Inter,sans-serif;color:#f3f4fb;background:#07070f">
+        <div><div style="font-size:3rem">🛠️</div>
+        <h1 style="font-family:Sora,sans-serif;margin:14px 0 6px">We'll be right back</h1>
+        <p style="color:#9aa0bb;max-width:420px">HackHunt is down for maintenance. Please check back in a little while.</p></div></div>`;
+    }}catch(e){}
+}
+checkMaintenance();
+
+// ===================== DEMO DATA =====================
+const DEMO=[
+ {id:"s-sih",title:"Smart India Hackathon",organizer:"Govt of India · Ministry of Education",platform:"Hack2skill",url:"https://www.sih.gov.in/",mode:"Hybrid",location:"India (Nationwide)",starts:"2026-08-01",ends:"2026-09-15",deadline:"2026-07-20",prize:"₹1,00,000 per problem",tags:["Govt","Open Innovation"],category:"Government",participants:200000,sample:true,verified:true},
+ {id:"s-fkgrid",title:"Flipkart GRiD 7.0",organizer:"Flipkart",platform:"Unstop",url:"https://unstop.com/awards/c/flipkart-grid-70-114547/2026",mode:"Online",location:"Online · India",starts:"2026-07-01",ends:"2026-10-01",deadline:"2026-07-06",prize:"₹6,00,000 + PPI",tags:["Hiring","Software"],category:"Hiring Challenge",participants:300000,sample:true,verified:true},
+ {id:"s-amlc",title:"Amazon ML Challenge",organizer:"Amazon",platform:"Unstop",url:"https://unstop.com/hackathons/amazon-ml-challenge-2025-amazon-1560375",mode:"Online",location:"Online · India",starts:"2026-09-15",ends:"2026-10-17",deadline:"2026-09-10",prize:"Cash + Interviews",tags:["Hiring","ML","AI"],category:"Hiring Challenge",participants:80000,sample:true,verified:true},
+ {id:"s-sparkathon",title:"Walmart Sparkathon",organizer:"Walmart Global Tech India",platform:"Unstop",url:"https://walmart.converge.tech/content/converge/en_in/sparkathon.html",mode:"Online",location:"Online · India",starts:"2026-06-15",ends:"2026-08-15",deadline:"2026-06-30",prize:"₹2,90,000 + PPI",tags:["Hiring","Retail Tech"],category:"Hiring Challenge",participants:70000,sample:true,verified:true},
+ {id:"s-myntra",title:"Myntra HackerRamp: WeForShe",organizer:"Myntra",platform:"Unstop",url:"https://unstop.com/hackathons/myntra-hackerramp-weforshe-2025-myntra-1513857",mode:"Online",location:"Online · India",starts:"2026-07-01",ends:"2026-08-10",deadline:"2026-06-23",prize:"PPI + Goodies",tags:["Women in Tech","Product"],category:"Hackathon",participants:40000,sample:true,verified:true},
+ {id:"s-codevita",title:"TCS CodeVita",organizer:"Tata Consultancy Services",platform:"Internshala",url:"https://www.tcsapps.com/codevita/",mode:"Online",location:"Online · Global",starts:"2026-07-20",ends:"2026-08-20",deadline:"2026-07-10",prize:"$10,000 + Job",tags:["Hiring","Coding"],category:"Hiring Challenge",participants:150000,sample:true,verified:true},
+ {id:"s-imaginecup",title:"Microsoft Imagine Cup",organizer:"Microsoft",platform:"Devpost",url:"https://imaginecup.microsoft.com/",mode:"Online",location:"Online · Global",starts:"2026-09-01",ends:"2026-11-30",deadline:"2026-08-25",prize:"$100,000",tags:["AI","Student"],category:"Hackathon",participants:50000,sample:true,verified:true},
+ {id:"s-ethindia",title:"ETHIndia",organizer:"Devfolio",platform:"Devfolio",url:"https://ethindia.co/",mode:"Offline",location:"Bengaluru, India",starts:"2026-12-05",ends:"2026-12-07",deadline:"2026-11-20",prize:"$200,000",tags:["Web3","Blockchain"],category:"Hackathon",participants:10000,sample:true,verified:true}
+];
+const COMMUNITY_DEMO=[
+ {id:"cd1",title:"PyConf Hyderabad 2026",organizer:"Python Society India",type:"Conference",category:"Conference",platform:"Community",city:"Hyderabad",mode:"Hybrid",location:"Hyderabad / Online",starts:"2026-09-26",ends:"2026-09-29",deadline:"2026-09-10",price:"₹2,500 (student)",ticket_url:"https://konfhub.com/pyconf-hyderabad-2026",url:"https://konfhub.com/pyconf-hyderabad-2026",tags:["Python","AI/ML"],themes:["AI/ML"],sample:true},
+ {id:"cd2",title:"GDG DevFest Bengaluru",organizer:"Google Developer Groups",type:"Meetup",category:"Meetup",platform:"Community",city:"Bengaluru",mode:"Offline",location:"Bengaluru",starts:"2026-10-04",ends:"2026-10-04",deadline:"2026-09-28",price:"Free",ticket_url:"https://gdg.community.dev/devfest/",url:"https://gdg.community.dev/devfest/",tags:["Google","AI"],themes:["AI/ML"],mnc:true,sample:true},
+ {id:"cd3",title:"droidcon India 2026",organizer:"droidcon",type:"Conference",category:"Conference",platform:"Community",city:"Bengaluru",mode:"Offline",location:"Bengaluru",starts:"2026-11-06",ends:"2026-11-07",deadline:"2026-10-25",price:"₹6,000",ticket_url:"https://india.droidcon.com/tickets",url:"https://india.droidcon.com/",tags:["Android","Mobile"],themes:["Mobile"],sample:true},
+ {id:"cd4",title:"Nullcon Goa 2026",organizer:"Nullcon",type:"Conference",category:"Conference",platform:"Community",city:"Goa",mode:"Offline",location:"Goa",starts:"2026-09-18",ends:"2026-09-20",deadline:"2026-09-05",price:"₹9,000 (student)",ticket_url:"https://nullcon.net/",url:"https://nullcon.net/",tags:["Security"],themes:["Cybersecurity"],sample:true},
+ {id:"cd5",title:"India Blockchain Week 2026",organizer:"Hashed Emergent",type:"Summit",category:"Conference",platform:"Community",city:"Mumbai",mode:"Offline",location:"Mumbai",starts:"2026-11-01",ends:"2026-11-02",deadline:"2026-10-20",price:"Super Early Bird",ticket_url:"https://www.indiablockchainweek.com/tickets",url:"https://www.indiablockchainweek.com/",tags:["Web3","Crypto"],themes:["Web3"],sample:true},
+ {id:"cd6",title:"AWS Community Day Bengaluru 2026",organizer:"AWS User Group Bengaluru",type:"Meetup",category:"Meetup",platform:"Community",city:"Bengaluru",mode:"Offline",location:"Bengaluru",starts:"2026-08-23",ends:"2026-08-23",deadline:"2026-08-15",price:"₹999",ticket_url:"https://acd.awsugblr.in/",url:"https://acd.awsugblr.in/",tags:["AWS","Cloud"],themes:["Cloud/DevOps"],mnc:true,sample:true}
+];
+
+// ===================== BOOTSTRAP =====================
+const savedTheme=localStorage.getItem("hh_theme");if(savedTheme)document.documentElement.dataset.theme=savedTheme;
+iconsInit();
+$("#logoIc").innerHTML=svg("zap");$("#gateLogo").innerHTML=svg("zap");
+$("#themeBtn").innerHTML=svg(document.documentElement.dataset.theme==="light"?"sun":"moon");
+// handle GitHub OAuth redirect (?login=github&name=&email=&picture=)
+(function handleOAuthRedirect(){
+  const p=new URLSearchParams(location.search);
+  if(p.get("login")==="github"&&p.get("email")){
+    setUser({name:p.get("name")||"Student",email:p.get("email"),picture:p.get("picture")||"",
+      interests:USER?.interests||[],college:"",year:""});
+    history.replaceState({},"",location.pathname);
+  }else if(p.get("autherror")){toast("Sign-in failed — check OAuth config",'user');
+    history.replaceState({},"",location.pathname);}
+})();
+
+renderAuthState();
+buildChips();
+load(true);   // always pull fresh on open (paints cache instantly first)
+if(!USER){setMode("signup");showGate();}
+</script>
+</body>
+</html>

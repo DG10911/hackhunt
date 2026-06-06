@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HackHunt · Owner Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070f;--card:rgba(255,255,255,.05);--brd:rgba(255,255,255,.12);--txt:#f3f4fb;--muted:#9aa0bb;
+  --accent:#7c5cff;--accent2:#19e3c7;--danger:#ff4d6d;--ok:#34d36b;--warn:#ffb13b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at 20% 0,rgba(124,92,255,.18),transparent 50%),var(--bg);
+  color:var(--txt);min-height:100vh}
+h1,h2,h3{font-family:Sora}
+a{color:var(--accent2)}
+.wrap{max-width:1200px;margin:0 auto;padding:20px}
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.lcard{background:var(--card);border:1px solid var(--brd);border-radius:20px;padding:34px;max-width:380px;width:100%;backdrop-filter:blur(14px)}
+.lcard h1{font-size:1.5rem;margin-bottom:4px}.lcard p{color:var(--muted);font-size:.9rem;margin-bottom:18px}
+.lock{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--danger));display:grid;place-items:center;margin-bottom:16px;font-size:1.6rem}
+input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--brd);border-radius:12px;padding:12px 14px;color:var(--txt);margin-top:10px;font-size:.95rem;outline:none}
+input:focus{border-color:var(--accent)}
+.btn{border:none;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;font-family:inherit;font-size:.9rem;transition:.15s}
+.btn:hover{transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;width:100%;margin-top:16px;justify-content:center}
+.btn.danger{background:var(--danger);color:#fff}
+.btn.warn{background:var(--warn);color:#1a1200}
+.btn.ghost{background:rgba(255,255,255,.06);color:var(--txt);border:1px solid var(--brd)}
+.hide{display:none!important}
+/* dashboard */
+header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--brd);position:sticky;top:0;background:rgba(7,7,15,.8);backdrop-filter:blur(12px);z-index:5}
+header h1{font-size:1.2rem}.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);animation:pulse 1.5s infinite}
+@keyframes pulse{50%{opacity:.4}}
+.spacer{margin-left:auto}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}
+@media(max-width:700px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:18px}
+.kpi b{font-family:Sora;font-size:1.9rem;display:block}.kpi span{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em}
+.kpi.live b{color:var(--ok)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:18px;margin-bottom:16px}
+.panel h2{font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.feed{max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:10px;align-items:center;font-size:.85rem;padding:8px;border-radius:10px;background:rgba(255,255,255,.03)}
+.row .who{font-weight:600}.row .meta{color:var(--muted);margin-left:auto;font-size:.75rem}
+.pill{font-size:.7rem;padding:3px 8px;border-radius:6px;background:rgba(124,92,255,.2);color:#b6a4ff;font-weight:600}
+.pill.click{background:rgba(25,227,199,.18);color:var(--accent2)}
+.pill.view{background:rgba(255,177,59,.18);color:var(--warn)}
+.pill.presence{background:rgba(52,211,107,.18);color:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--brd)}
+th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
+.danger-zone{border-color:rgba(255,77,109,.4)}
+.danger-zone h2{color:var(--danger)}
+.muted{color:var(--muted);font-size:.85rem}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+</style></head>
+<body>
+
+<!-- LOGIN -->
+<div class="login" id="loginView">
+  <form class="lcard" id="loginForm">
+    <div class="lock">🔐</div>
+    <h1>Owner Console</h1>
+    <p>Restricted. Authorized access only.</p>
+    <input id="ou" placeholder="Owner ID" autocomplete="off">
+    <input id="op" type="password" placeholder="Secret password">
+    <button class="btn primary" type="submit">Enter dashboard</button>
+    <p class="muted" id="loginErr" style="color:var(--danger);margin-top:12px"></p>
+  </form>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashView" class="hide">
+  <header>
+    <span class="dot"></span><h1>HackHunt Owner Console</h1>
+    <div class="spacer"></div>
+    <span class="muted" id="updated"></span>
+    <button class="btn ghost" id="logoutBtn">Sign out</button>
+  </header>
+  <div class="wrap">
+    <div class="kpis">
+      <div class="kpi live"><b id="k-live">0</b><span>Live now</span></div>
+      <div class="kpi"><b id="k-users">0</b><span>Total users</span></div>
+      <div class="kpi"><b id="k-saves">0</b><span>Saves</span></div>
+      <div class="kpi"><b id="k-events">0</b><span>Events archived</span></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h2><span class="dot"></span>Live users <span class="muted" id="liveCount"></span></h2>
+        <div class="feed" id="liveList"></div>
+      </div>
+      <div class="panel">
+        <h2>⚡ Live activity (clicks &amp; views)</h2>
+        <div class="feed" id="activityList"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>👥 All users</h2>
+      <div style="overflow:auto"><table id="usersTbl">
+        <thead><tr><th>Name</th><th>Email</th><th>College</th><th>Year</th><th>Last seen</th><th></th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+
+    <div class="panel danger-zone">
+      <h2>⚠️ Danger zone — site controls</h2>
+      <div class="controls">
+        <button class="btn warn" id="maintBtn">Loading…</button>
+        <span class="muted">Maintenance freezes the public site for all users.</span>
+      </div>
+      <div class="controls" style="margin-top:14px">
+        <button class="btn danger" id="wipeBtn">Wipe ALL user data</button>
+        <span class="muted">Deletes every account, save, team post &amp; analytics. Irreversible.</span>
+      </div>
+    </div>
+    <p class="muted" style="text-align:center;margin:20px 0">HackHunt Owner Console · auto-refreshes every 3s</p>
+  </div>
+</div>
+
+<script>
+const BASE = (location.port==="5050"||location.protocol==="http:"||location.protocol==="https:")?"":"http://localhost:5050";
+let TOKEN = sessionStorage.getItem("hh_owner_token")||"";
+const $=s=>document.querySelector(s);
+function fmtTime(ts){try{return new Date(ts*1000).toLocaleTimeString();}catch(e){return"";}}
+function ago(ts){const s=Math.round(Date.now()/1000-ts);return s<60?s+"s":Math.round(s/60)+"m";}
+
+async function login(u,p){
+  const r=await fetch(BASE+"/api/owner/login",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({user:u,pass:p})});
+  const d=await r.json();
+  if(d.ok){TOKEN=d.token;sessionStorage.setItem("hh_owner_token",TOKEN);showDash();}
+  else $("#loginErr").textContent="Invalid credentials.";
+}
+$("#loginForm").onsubmit=e=>{e.preventDefault();login($("#ou").value.trim(),$("#op").value);};
+$("#logoutBtn").onclick=()=>{sessionStorage.removeItem("hh_owner_token");location.reload();};
+
+function showDash(){$("#loginView").classList.add("hide");$("#dashView").classList.remove("hide");poll();}
+
+async function poll(){
+  if(!TOKEN)return;
+  try{
+    const r=await fetch(BASE+"/api/owner/overview",{headers:{"X-Owner-Token":TOKEN}});
+    if(r.status===401){sessionStorage.removeItem("hh_owner_token");location.reload();return;}
+    const d=await r.json();
+    $("#k-live").textContent=d.live.length;
+    $("#k-users").textContent=d.stats.users;
+    $("#k-saves").textContent=d.stats.saves;
+    $("#k-events").textContent=d.stats.events_archived;
+    $("#liveCount").textContent="("+d.live.length+")";
+    $("#updated").textContent="updated "+new Date().toLocaleTimeString();
+    // live
+    $("#liveList").innerHTML=d.live.length?d.live.map(u=>`<div class="row">
+      <span class="who">${u.name||"Guest"}</span>
+      <span class="pill presence">${u.path||"—"}</span>
+      <span class="meta">${u.email||"anon"} · ${ago(u.last_seen)} ago</span></div>`).join(""):'<p class="muted">No one online right now.</p>';
+    // activity
+    $("#activityList").innerHTML=d.activity.length?d.activity.map(a=>`<div class="row">
+      <span class="pill ${a.kind}">${a.kind}</span>
+      <span class="who">${a.name||"Guest"}</span>
+      <span>${(a.detail||a.path||"").slice(0,46)}</span>
+      <span class="meta">${fmtTime(a.ts)}</span></div>`).join(""):'<p class="muted">No activity yet.</p>';
+    // users
+    $("#usersTbl tbody").innerHTML=d.users.map(u=>`<tr>
+      <td>${u.name||"—"}</td><td>${u.email||"—"}</td><td>${u.college||"—"}</td><td>${u.year||"—"}</td>
+      <td class="muted">${u.last_seen?ago(u.last_seen)+" ago":"—"}</td>
+      <td><button class="btn danger" style="padding:5px 10px" data-del="${u.email}">Delete</button></td></tr>`).join("")
+      ||'<tr><td colspan="6" class="muted">No users yet.</td></tr>';
+    $("#usersTbl").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>delUser(b.dataset.del));
+    // maintenance button
+    const m=$("#maintBtn");m.dataset.on=d.maintenance?"1":"0";
+    m.textContent=d.maintenance?"🔴 Site is DOWN — bring it back":"🟢 Site is LIVE — take it down";
+    m.className="btn "+(d.maintenance?"danger":"warn");
+  }catch(e){}
+}
+setInterval(poll,3000);
+
+async function delUser(email){
+  if(!confirm("Delete user "+email+" and all their data?"))return;
+  await fetch(BASE+"/api/owner/delete-user",{method:"POST",headers:{"Content-Type":"application/json","X-Owner-Token":TOKEN},body:JSON.stringify({email})});
+  poll();
+}
+$("#maintBtn").onclick=async()=>{
+  const on=$("#maintBtn").dataset.on!=="1";
+  if(on&&!confirm("Take the WHOLE site down for all users?"))return;
+  await fetch(BASE+"/api/owner/maintenance",{method:"POST",headers:{"Content-Type":"application/json","X-Owner-Token":TOKEN},body:JSON.stringify({on})});
+  poll();
+};
+$("#wipeBtn").onclick=async()=>{
+  if(!confirm("⚠️ This deletes ALL users, saves, team posts and analytics. Type-safe? This cannot be undone."))return;
+  if(!confirm("Are you absolutely sure? Final confirmation."))return;
+  await fetch(BASE+"/api/owner/wipe",{method:"POST",headers:{"X-Owner-Token":TOKEN}});
+  poll();
+};
+
+// auto-enter if already authed this session
+if(TOKEN) showDash();
+</script>
+</body></html>

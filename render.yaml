@@ -1,0 +1,50 @@
+# Render Blueprint — one service + a persistent disk for the SQLite DB & cache.
+# In Render: New → Blueprint → connect this repo → it reads this file.
+# Then fill the secret env vars (marked sync:false) in the dashboard.
+services:
+  - type: web
+    name: hackhunt
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    healthCheckPath: /api/health
+    disk:
+      name: hackhunt-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: HH_DATA_DIR
+        value: /var/data
+      - key: APP_URL
+        sync: false          # set to your live URL, e.g. https://hackhunt.onrender.com
+      - key: OWNER_USER
+        sync: false
+      - key: OWNER_PASS
+        sync: false
+      - key: OWNER_TOKEN
+        sync: false
+      - key: REMINDER_TOKEN
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: REMIND_DAYS
+        value: "3"
+
+# Daily reminder emails: schedule a free cron at https://cron-job.org to POST
+#   https://YOUR-APP.onrender.com/api/run-reminders?token=YOUR_REMINDER_TOKEN
+# once a day. (Render free cron jobs can't share this service's disk, so the
+# HTTP trigger is the simplest reliable way.)

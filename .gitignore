@@ -1,0 +1,7 @@
+# Secrets & local data — never commit these
+backend/.env
+backend/hackhunt.db
+backend/cache.json
+**/__pycache__/
+*.pyc
+.DS_Store

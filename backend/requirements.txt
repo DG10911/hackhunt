@@ -1,0 +1,7 @@
+flask>=3.0
+flask-cors>=4.0
+requests>=2.31
+python-dotenv>=1.0
+gunicorn>=21.2
+# Postgres (optional — only needed if you migrate off SQLite):
+# psycopg2-binary>=2.9
