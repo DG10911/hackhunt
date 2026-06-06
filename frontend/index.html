@@ -366,13 +366,9 @@ footer{text-align:center;color:var(--faint);padding:30px;font-size:.8rem;border-
 <div class="gate" id="gate">
   <div class="gate-card">
     <span class="logo" id="gateLogo"></span>
-    <h2 id="gateTitle">Create your account</h2>
-    <p class="sub" id="gateSub">Join HackHunt to save events, get reminders & personalized picks.</p>
-    <div class="seg">
-      <button id="segSignup" class="on" onclick="setMode('signup')">Sign up</button>
-      <button id="segLogin" onclick="setMode('login')">Log in</button>
-    </div>
-    <div id="gbtnSlot"></div>
+    <h2 id="gateTitle">Sign in to HackHunt</h2>
+    <p class="sub" id="gateSub">Continue with Google or GitHub to save events, get reminders &amp; personalized picks.</p>
+    <div id="gbtnSlot" style="margin-top:18px"></div>
     <button class="gbtn" id="gFallback" onclick="googleAuth()">
       <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.1 0 24 0 14.6 0 6.4 5.4 2.5 13.3l7.8 6.1C12.2 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-3.9 6.9-9.7 6.9-17.4z"/><path fill="#FBBC05" d="M10.3 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.8-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.5 10.7l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.5l-7.3-5.7c-2 1.4-4.7 2.3-7.7 2.3-6.4 0-11.8-3.7-13.7-9.1l-7.8 6.1C6.4 42.6 14.6 48 24 48z"/></svg>
       Continue with Google
@@ -381,19 +377,9 @@ footer{text-align:center;color:var(--faint);padding:30px;font-size:.8rem;border-
       <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.9 10.9c.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 5 18.3 5.3 18.3 5.3c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
       Continue with GitHub
     </a>
-    <div class="divider">or</div>
-    <div class="field" id="nameField"><label>Full name</label><input id="gName" placeholder="Your name"></div>
-    <div class="field"><label>Email</label><input id="gEmail" type="email" placeholder="you@college.edu"></div>
-    <label id="consentRow" style="display:flex;gap:9px;align-items:flex-start;margin-top:14px;text-align:left;font-size:.8rem;color:var(--muted);cursor:pointer">
-      <input type="checkbox" id="gConsent" style="margin-top:3px">
-      <span>I agree to the <a href="/terms.html" target="_blank" style="color:var(--accent-2)">Terms</a> and
-      <a href="/privacy.html" target="_blank" style="color:var(--accent-2)">Privacy Policy</a>, and consent to my
-      data being processed as described (DPDP Act, 2023).</span>
-    </label>
-    <button class="btn primary" style="width:100%;justify-content:center;margin-top:16px;padding:13px" onclick="emailAuth()">
-      <span id="gateBtnText">Create account</span>
-    </button>
-    <p class="note">No password needed — a simple student profile. For real Google/GitHub sign-in, add your OAuth keys (see DEPLOY.md).</p>
+    <p class="note">By continuing you agree to our
+      <a href="/terms.html" target="_blank" style="color:var(--accent-2)">Terms</a> &amp;
+      <a href="/privacy.html" target="_blank" style="color:var(--accent-2)">Privacy Policy</a> (DPDP Act, 2023).</p>
   </div>
 </div>
 
@@ -813,12 +799,7 @@ function switchTab(tab){
 window.switchTab=switchTab;
 
 // ===================== AUTH GATE =====================
-function setMode(m){authMode=m;
-  $("#segSignup").classList.toggle("on",m==="signup");$("#segLogin").classList.toggle("on",m==="login");
-  $("#gateTitle").textContent=m==="signup"?"Create your account":"Welcome back";
-  $("#gateSub").textContent=m==="signup"?"Join HackHunt to save events, get reminders & personalized picks.":"Log in to access your saved events and picks.";
-  $("#gateBtnText").textContent=m==="signup"?"Create account":"Log in";
-  $("#nameField").style.display=m==="signup"?"":"none";}
+function setMode(m){/* OAuth-only gate — no modes/fields anymore */}
 window.setMode=setMode;
 function showGate(){$("#gate").classList.add("show");document.body.style.overflow="hidden";}
 function hideGate(){$("#gate").classList.remove("show");document.body.style.overflow="";}
@@ -828,14 +809,7 @@ function setUser(u){USER=u;persistUser();renderAuthState();hideGate();toast(`Wel
   fetch(API_AUTH,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(u)})
     .then(r=>r.json()).then(d=>{if(d&&d.user&&Array.isArray(d.user.saved)){
       d.user.saved.forEach(id=>SAVED.add(id));persistSaved();render();}}).catch(()=>{});}
-function emailAuth(){
-  const name=(authMode==="signup")?($("#gName").value||"").trim():(($("#gName").value||"").trim()||"Student");
-  const email=($("#gEmail").value||"").trim();
-  if(authMode==="signup"&&!name){toast("Please enter your name",'user');return;}
-  if(!email){toast("Please enter your email",'user');return;}
-  if(authMode==="signup"&&!$("#gConsent").checked){toast("Please accept Terms & Privacy to continue",'shield');return;}
-  setUser({name:name||email.split("@")[0],email,picture:"",interests:USER?.interests||[],college:"",year:"",consent:true});
-}
+function emailAuth(){/* removed — Google/GitHub only */}
 window.emailAuth=emailAuth;
 function googleAuth(){if(GOOGLE_CLIENT_ID)return; // real button handles it
   setUser({name:"Demo Student",email:"demo@student.in",picture:"",interests:[],college:"",year:""});}
