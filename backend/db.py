@@ -667,8 +667,7 @@ import random as _random
 
 # Tier thresholds (sign-ups referred). Order matters.
 TIERS = [
-    ("Campus Ambassador", 1),
-    ("Star Ambassador", 25),
+    ("Star Ambassador", 30),
     ("Campus Lead", 75),
     ("National Ambassador", 150),
 ]
