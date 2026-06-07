@@ -114,7 +114,7 @@ def _security_headers(resp):
     resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     resp.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; "
+        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://cdnjs.cloudflare.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' data: https:; "

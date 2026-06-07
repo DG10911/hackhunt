@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ambassador Offer Letter Generator · HackHunt</title>
 <style>
-:root{--ink:#1a1530;--acc:#5b3df5;--acc2:#12b886;--mut:#6b7280;--line:#e5e7eb}
+:root{--acc:#5b3df5;--acc2:#12b886}
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:#0c0c17;color:#eef0fb}
 .bar{display:flex;gap:10px;align-items:center;padding:14px 18px;border-bottom:1px solid #262640;flex-wrap:wrap}
@@ -11,149 +11,158 @@ body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:#0c0c17;co
 .spacer{flex:1}
 .btn{border:0;border-radius:9px;padding:9px 15px;font-weight:700;cursor:pointer;background:var(--acc);color:#fff;font-size:.88rem}
 .btn.ghost{background:transparent;border:1px solid #262640;color:#eef0fb}
-.btn.green{background:var(--acc2);color:#042}
+.btn.green{background:var(--acc2);color:#04211a}
+.btn:disabled{opacity:.5;cursor:wait}
 .layout{display:grid;grid-template-columns:300px 1fr;gap:0}
-.panel{padding:18px;border-right:1px solid #262640;min-height:calc(100vh - 52px)}
+.panel{padding:18px;border-right:1px solid #262640}
 label{font-size:.78rem;color:#9aa0bb;display:block;margin:12px 0 5px}
 input,select{width:100%;background:#12121f;border:1px solid #262640;color:#eef0fb;border-radius:9px;padding:10px 12px;font-size:.9rem}
 .stage{padding:24px;display:flex;justify-content:center;background:#0c0c17;overflow:auto}
-/* the printable letter */
-#sheet{background:#fff;color:var(--ink);width:794px;min-height:1123px;padding:64px 70px;font-family:Georgia,'Times New Roman',serif;box-shadow:0 10px 40px rgba(0,0,0,.5);position:relative}
-.lh{display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--acc);padding-bottom:16px}
-.lh .logo{flex:none}
-.lh .org{font-family:Inter,sans-serif}
-.lh .org .nm{font-size:1.5rem;font-weight:900;letter-spacing:.5px}
-.lh .org .nm .g{color:var(--acc)}
-.lh .org .tag{font-size:.72rem;color:var(--mut);letter-spacing:2px;text-transform:uppercase}
-.lh .meta{margin-left:auto;text-align:right;font-family:Inter,sans-serif;font-size:.72rem;color:var(--mut)}
-#sheet h2{font-family:Inter,sans-serif;text-align:center;letter-spacing:3px;font-size:1.1rem;margin:34px 0 8px;color:var(--ink)}
-.ref{font-family:Inter,sans-serif;font-size:.78rem;color:var(--mut);display:flex;justify-content:space-between;margin-bottom:22px}
-#sheet p{line-height:1.7;font-size:1.02rem;margin:14px 0}
-.hi{color:var(--acc);font-weight:bold}
-.perks{font-family:Inter,sans-serif;font-size:.95rem;background:#f6f5ff;border-left:4px solid var(--acc);padding:14px 18px;border-radius:6px;margin:16px 0}
-.perks li{margin:5px 0}
-.sign{margin-top:46px;display:flex;justify-content:space-between;align-items:flex-end}
-.sign .script{font-family:'Brush Script MT','Segoe Script',cursive;font-size:1.7rem;color:var(--ink)}
-.sign .line{border-top:1px solid #999;padding-top:5px;font-family:Inter,sans-serif;font-size:.8rem;color:var(--mut)}
-.seal{width:96px;height:96px;opacity:.95}
-.foot{position:absolute;left:70px;right:70px;bottom:40px;border-top:1px solid var(--line);padding-top:10px;font-family:Inter,sans-serif;font-size:.7rem;color:var(--mut);display:flex;justify-content:space-between}
-@media print{body{background:#fff}.bar,.panel{display:none}.layout{grid-template-columns:1fr}.stage{padding:0}#sheet{box-shadow:none;width:auto;min-height:auto}}
-@media(max-width:820px){.layout{grid-template-columns:1fr}.panel{min-height:auto;border-right:0;border-bottom:1px solid #262640}#sheet{width:100%;padding:34px 26px}}
+#preview{width:100%;max-width:680px;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+#preview svg{display:block;width:100%;height:auto}
+@media(max-width:820px){.layout{grid-template-columns:1fr}.panel{border-right:0;border-bottom:1px solid #262640}}
 </style></head><body>
-
 <div class="bar">
-  <h1>🎓 Ambassador Offer Letter Generator</h1>
+  <h1>🎓 Ambassador Offer Letter</h1>
   <span class="spacer"></span>
-  <button class="btn green" id="printBtn">⬇ Download / Print PDF</button>
-  <button class="btn ghost" id="dlLogo">Download logo (SVG)</button>
+  <button class="btn green" id="pdfBtn">⬇ Download PDF</button>
+  <button class="btn ghost" id="pngBtn">PNG</button>
+  <button class="btn ghost" id="dlLogo">Logo</button>
   <a class="btn ghost" href="/ambassador.html" style="text-decoration:none">Dashboard</a>
 </div>
-
 <div class="layout">
   <div class="panel">
     <label>Ambassador name</label><input id="fName" value="Raghav Sharma">
     <label>College / University</label><input id="fCollege" value="IIT Delhi">
-    <label>Tier / Title</label>
+    <label>Appointment title</label>
     <select id="fTier">
       <option>Campus Ambassador</option><option>Star Ambassador</option>
       <option>Campus Lead</option><option>National Ambassador</option>
     </select>
     <label>Date</label><input id="fDate" type="date">
-    <label>Reference ID</label>
-    <div style="display:flex;gap:8px"><input id="fRef" value="" readonly>
+    <label>Reference number</label>
+    <div style="display:flex;gap:8px"><input id="fRef" readonly>
       <button class="btn ghost" id="newRef" title="New reference number">↻</button></div>
-    <p style="font-size:.75rem;color:#9aa0bb;margin-top:16px">Fill the fields → the letter updates live.
-    A <b>new reference number</b> is generated automatically each time you download.
-    Click <b>Download / Print PDF</b> and choose "Save as PDF". 🚀</p>
+    <p style="font-size:.75rem;color:#9aa0bb;margin-top:16px">Edit the fields → the letter updates live.
+    <b>Download PDF</b> gives a clean, single-page A4 letter — no print settings, no layout issues.
+    A fresh reference number is generated on every download.</p>
   </div>
-
-  <div class="stage">
-    <div id="sheet">
-      <div class="lh">
-        <span class="logo" id="logoSlot"></span>
-        <div class="org"><div class="nm">Hack<span class="g">Hunt</span></div>
-          <div class="tag">All Hackathons of India, One Place</div></div>
-        <div class="meta">hackhunt.xyz</div>
-      </div>
-
-      <h2>LETTER OF APPOINTMENT</h2>
-      <div class="ref"><span>Ref: <b id="oRef">HH-AMB-0001</b></span><span>Date: <b id="oDate">—</b></span></div>
-
-      <p>Dear <span class="hi" id="oName">Raghav Sharma</span>,</p>
-
-      <p>We are delighted to appoint you as a <b id="oTier">Campus Ambassador</b> for
-      <b>HackHunt</b> at <span class="hi" id="oCollege">IIT Delhi</span>.</p>
-
-      <p>In this role, you will represent HackHunt across your campus and empower fellow students
-      to discover hackathons, hiring challenges, and tech opportunities from across India. Your
-      contribution helps thousands of students never miss an opportunity again.</p>
-
-      <p>This is a <b>voluntary recognition role</b>. In appreciation of your efforts, you are
-      eligible to earn:</p>
-      <div class="perks"><ul>
-        <li>An official, verifiable <b>Certificate of Achievement</b></li>
-        <li>A <b>LinkedIn credential</b> (“<span id="oTier2">Campus Ambassador</span>, HackHunt”)</li>
-        <li><b>Letters of Recommendation</b> &amp; HackHunt goodies for top performers</li>
-        <li>Recognition on the HackHunt leaderboard &amp; socials</li>
-      </ul></div>
-
-      <p>We are thrilled to have you on the team and look forward to your impact. Welcome to HackHunt!</p>
-
-      <div class="sign">
-        <div>
-          <div class="script">Team HackHunt</div>
-          <div class="line">Team HackHunt · hackhunt.xyz</div>
-        </div>
-        <span class="seal" id="sealSlot"></span>
-      </div>
-
-      <div class="foot"><span>HackHunt · Campus Ambassador Program</span><span>This letter is computer-generated and valid without physical signature.</span></div>
-    </div>
-  </div>
+  <div class="stage"><div id="preview"></div></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-// ---- HackHunt logo (rocket-in-shield) ----
-const LOGO=`<svg width="56" height="56" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#12b886"/></linearGradient></defs>
-<path d="M32 3 56 12v18c0 16-11 27-24 31C19 57 8 46 8 30V12z" fill="url(#g)"/>
-<path d="M32 18c6 4 9 10 9 17l-5-3-4 6-4-6-5 3c0-7 3-13 9-17z" fill="#fff"/>
-<circle cx="32" cy="30" r="3" fill="#5b3df5"/></svg>`;
-const SEAL=`<svg width="96" height="96" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-<circle cx="50" cy="50" r="46" fill="none" stroke="#5b3df5" stroke-width="2"/>
-<circle cx="50" cy="50" r="38" fill="none" stroke="#12b886" stroke-width="1.5" stroke-dasharray="3 3"/>
-<text x="50" y="38" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="800" fill="#5b3df5">HACKHUNT</text>
-<text x="50" y="55" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" fill="#1a1530">CAMPUS</text>
-<text x="50" y="65" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" fill="#1a1530">AMBASSADOR</text>
-<text x="50" y="80" text-anchor="middle" font-family="Inter,sans-serif" font-size="6" fill="#12b886">★ OFFICIAL ★</text></svg>`;
-document.getElementById("logoSlot").innerHTML=LOGO;
-document.getElementById("sealSlot").innerHTML=SEAL;
-
 const $=s=>document.getElementById(s);
-function refid(){const d=new Date();const y=d.getFullYear();
-  return "HH-AMB-"+y+"-"+Math.random().toString(36).slice(2,7).toUpperCase();}
-function newRef(){$("fRef").value=refid();upd();}
-newRef();
-$("fDate").valueAsDate=new Date();
-function upd(){
-  $("oName").textContent=$("fName").value||"—";
-  $("oCollege").textContent=$("fCollege").value||"—";
-  $("oTier").textContent=$("fTier").value;
-  $("oTier2").textContent=$("fTier").value;
-  $("oRef").textContent=$("fRef").value||"—";
-  const d=$("fDate").value?new Date($("fDate").value):new Date();
-  $("oDate").textContent=d.toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"});
+const xml=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ACC={ "Campus Ambassador":"#5b3df5","Star Ambassador":"#6b7484","Campus Lead":"#bf9b30","National Ambassador":"#4b35b3" };
+// A4 portrait @ ~96dpi
+const W=794,H=1123;
+
+function wrap(text,max){const words=text.split(" ");const lines=[];let cur="";
+  for(const w of words){if((cur+" "+w).trim().length>max){lines.push(cur.trim());cur=w;}else cur+=" "+w;}
+  if(cur.trim())lines.push(cur.trim());return lines;}
+
+function refid(){return "HH-AMB-"+new Date().getFullYear()+"-"+Math.random().toString(36).slice(2,7).toUpperCase();}
+function newRef(){$("fRef").value=refid();draw();}
+
+function buildSVG(){
+  const name=xml($("fName").value)||"—", college=xml($("fCollege").value)||"—",
+        tier=$("fTier").value, ref=xml($("fRef").value),
+        d=$("fDate").value?new Date($("fDate").value):new Date(),
+        date=d.toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"});
+  const acc=ACC[tier]||"#5b3df5", NAVY="#0f1c3f", INK="#1f2738", MUT="#5b6478";
+  const para1=`We are delighted to appoint you as a ${tier} for HackHunt at ${$("fCollege").value||"your college"}. On behalf of the entire team, we warmly welcome you to the HackHunt Campus Ambassador Program.`;
+  const para2=`In this role, you will represent HackHunt across your campus and empower fellow students to discover hackathons, hiring challenges, ideathons, and tech opportunities from across India. Your efforts will help thousands of students never miss an opportunity again.`;
+  const para3=`This is a voluntary recognition role. In appreciation of your contribution, you are eligible to earn the rewards listed below, based on the milestones you achieve during your tenure.`;
+  const para4=`We are confident you will make a real impact, and we look forward to your success. Once again, welcome to the team!`;
+  let y=300;const L=70;const lh=23;const tsp=[];
+  function block(text){wrap(text,92).forEach(line=>{tsp.push(`<text x="${L}" y="${y}" font-size="14.5" fill="${INK}">${xml(line)}</text>`);y+=lh;});y+=10;}
+  // salutation
+  tsp.push(`<text x="${L}" y="${y}" font-size="15" fill="${INK}">Dear <tspan font-weight="bold" fill="${NAVY}">${name}</tspan>,</text>`);y+=lh+8;
+  block(para1);block(para2);block(para3);
+  const perksY=y;y+=8;
+  const perks=["Official, verifiable Certificate of Achievement","LinkedIn credential — “"+tier+", HackHunt”","Letters of Recommendation & goodies for top performers","Recognition on the HackHunt leaderboard & socials"];
+  let py=perksY+26;const perkLines=perks.map(p=>{const t=`<text x="${L+22}" y="${py}" font-size="13.5" fill="${INK}">•  ${xml(p)}</text>`;py+=24;return t;}).join("");
+  const perkBoxH=perks.length*24+22;
+  y=perksY+perkBoxH+24;
+  block(para4);
+  return `<svg id="letterSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Georgia,'Times New Roman',serif">
+  <rect width="${W}" height="${H}" fill="#ffffff"/>
+  <rect x="0" y="0" width="8" height="${H}" fill="${acc}"/>
+  <!-- letterhead -->
+  <g transform="translate(70,52)">
+    <g transform="scale(0.95)"><path d="M30 0 54 9v17c0 15-10 26-24 30C16 52 6 41 6 26V9z" fill="${acc}"/>
+    <path d="M30 14c5.6 3.7 8.4 9.3 8.4 16l-4.7-2.8L30 33l-3.7-5.6L21.6 30c0-6.7 2.8-12.3 8.4-16z" fill="#fff"/>
+    <circle cx="30" cy="26" r="2.6" fill="${acc}"/></g>
+  </g>
+  <text x="130" y="78" font-family="Inter,Arial,sans-serif" font-size="26" font-weight="800" fill="${NAVY}">Hack<tspan fill="${acc}">Hunt</tspan></text>
+  <text x="131" y="98" font-family="Inter,Arial,sans-serif" font-size="10.5" letter-spacing="2" fill="${MUT}">ALL HACKATHONS OF INDIA, ONE PLACE</text>
+  <text x="${W-70}" y="74" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="12" fill="${MUT}">hackhunt.xyz</text>
+  <line x1="70" y1="120" x2="${W-70}" y2="120" stroke="${acc}" stroke-width="2.5"/>
+  <!-- title -->
+  <text x="${W/2}" y="172" text-anchor="middle" font-size="22" letter-spacing="4" fill="${NAVY}">LETTER OF APPOINTMENT</text>
+  <!-- ref / date -->
+  <text x="70" y="212" font-family="Inter,Arial,sans-serif" font-size="12" fill="${MUT}">Ref: <tspan font-weight="700" fill="${INK}">${ref}</tspan></text>
+  <text x="${W-70}" y="212" text-anchor="end" font-family="Inter,Arial,sans-serif" font-size="12" fill="${MUT}">Date: <tspan font-weight="700" fill="${INK}">${xml(date)}</tspan></text>
+  <line x1="70" y1="228" x2="${W-70}" y2="228" stroke="#e5e7eb" stroke-width="1"/>
+  ${tsp.join("")}
+  <!-- perks box -->
+  <rect x="64" y="${perksY+6}" width="${W-128}" height="${perkBoxH}" fill="#f6f5ff" rx="6"/>
+  <rect x="64" y="${perksY+6}" width="4" height="${perkBoxH}" fill="${acc}"/>
+  <text x="${L+22}" y="${perksY+0}" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" fill="${acc}">YOU ARE ELIGIBLE TO EARN</text>
+  ${perkLines}
+  <!-- signature + seal -->
+  <text x="70" y="${H-150}" font-size="15" fill="${INK}">Warm regards,</text>
+  <text x="70" y="${H-110}" font-size="26" font-style="italic" fill="${NAVY}">Team HackHunt</text>
+  <line x1="70" y1="${H-100}" x2="250" y2="${H-100}" stroke="${MUT}" stroke-width="1"/>
+  <text x="70" y="${H-82}" font-family="Inter,Arial,sans-serif" font-size="11.5" fill="${MUT}">Team HackHunt · hackhunt.xyz</text>
+  <g transform="translate(${W-150},${H-150})">
+    <circle r="46" fill="none" stroke="${acc}" stroke-width="2"/>
+    <circle r="38" fill="none" stroke="${acc}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
+    <text y="-10" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="800" fill="${NAVY}">HACKHUNT</text>
+    <text y="3" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="8" fill="${INK}">CAMPUS</text>
+    <text y="14" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="8" fill="${INK}">AMBASSADOR</text>
+    <text y="30" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="7" fill="${acc}">★ OFFICIAL ★</text>
+  </g>
+  <line x1="70" y1="${H-56}" x2="${W-70}" y2="${H-56}" stroke="#e5e7eb" stroke-width="1"/>
+  <text x="${W/2}" y="${H-38}" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="9.5" fill="${MUT}">This is a computer-generated appointment letter and is valid without a physical signature. · HackHunt Campus Ambassador Program</text>
+  </svg>`;
 }
-["fName","fCollege","fTier","fDate","fRef"].forEach(id=>$(id).addEventListener("input",upd));
-upd();
 
+function draw(){$("preview").innerHTML=buildSVG();}
+
+// rasterize current SVG -> PNG dataURL at hi-res (no external imgs -> no taint)
+function rasterize(scale){return new Promise((res,rej)=>{
+  const svg=$("letterSVG").cloneNode(true);svg.setAttribute("width",W*scale);svg.setAttribute("height",H*scale);
+  const str=new XMLSerializer().serializeToString(svg);
+  const img=new Image();
+  img.onload=()=>{const c=document.createElement("canvas");c.width=W*scale;c.height=H*scale;
+    const ctx=c.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
+    res(c.toDataURL("image/png"));};
+  img.onerror=rej;img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(str);});}
+
+$("pdfBtn").onclick=async()=>{
+  newRef(); // fresh ref each download
+  const b=$("pdfBtn");b.disabled=true;b.textContent="Generating…";
+  try{
+    const png=await rasterize(2.5);
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({unit:"px",format:"a4",orientation:"portrait"});
+    const pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight();
+    pdf.addImage(png,"PNG",0,0,pw,ph);
+    pdf.save("HackHunt-Offer-Letter-"+$("fName").value.replace(/\s+/g,"-")+".pdf");
+  }catch(e){alert("Could not generate PDF — try the PNG button.");}
+  b.disabled=false;b.textContent="⬇ Download PDF";
+};
+$("pngBtn").onclick=async()=>{newRef();const png=await rasterize(2.5);const a=document.createElement("a");a.href=png;a.download="HackHunt-Offer-Letter.png";a.click();};
 $("newRef").onclick=newRef;
-// every download/print gets a brand-new reference number
-$("printBtn").onclick=()=>{newRef();setTimeout(()=>window.print(),60);};
+$("dlLogo").onclick=()=>{const acc=ACC[$("fTier").value]||"#5b3df5";
+  const logo=`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 64 64"><path d="M32 3 56 12v18c0 16-11 27-24 31C19 57 8 46 8 30V12z" fill="${acc}"/><path d="M32 18c6 4 9 10 9 17l-5-3-4 6-4-6-5 3c0-7 3-13 9-17z" fill="#fff"/><circle cx="32" cy="30" r="3" fill="${acc}"/></svg>`;
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([logo],{type:"image/svg+xml"}));a.download="hackhunt-logo.svg";a.click();};
 
-// download logo as SVG file
-$("dlLogo").onclick=()=>{const blob=new Blob([LOGO.replace('width="56" height="56"','width="240" height="240"')],{type:"image/svg+xml"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="hackhunt-logo.svg";a.click();};
+["fName","fCollege","fTier","fDate"].forEach(id=>$(id).addEventListener("input",draw));
+$("fDate").valueAsDate=new Date();
+$("fRef").value=refid();
+draw();
 </script>
 </body></html>
