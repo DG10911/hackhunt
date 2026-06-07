@@ -90,13 +90,17 @@ def init():
             ip TEXT PRIMARY KEY, count INTEGER DEFAULT 0, last REAL);
         CREATE TABLE IF NOT EXISTS community_events(
             id TEXT PRIMARY KEY, json TEXT, ts REAL);
+        CREATE TABLE IF NOT EXISTS ambassadors(
+            code TEXT PRIMARY KEY, name TEXT, email TEXT, college TEXT, created REAL);
+        CREATE TABLE IF NOT EXISTS certs(
+            cert_id TEXT PRIMARY KEY, code TEXT, name TEXT, tier TEXT, issued REAL);
         """)
         # migrations: add newer columns if missing (older DBs)
         for tbl, col in (("users", "skills TEXT"), ("users", "achievements TEXT"),
                          ("users", "github TEXT"), ("users", "linkedin TEXT"),
                          ("analytics", "ip TEXT"), ("presence", "ip TEXT"),
                          ("threats", "severity TEXT"), ("threats", "ua TEXT"),
-                         ("threats", "country TEXT")):
+                         ("threats", "country TEXT"), ("users", "ref TEXT")):
             try:
                 c.execute(f"ALTER TABLE {tbl} ADD COLUMN {col}")
             except Exception:
@@ -125,10 +129,13 @@ def upsert_user(u):
                          skills=?, achievements=?, github=?, linkedin=?, last_seen=? WHERE email=?""",
                       (name, picture, college, year, interests, skills, ach, github, linkedin, now, email))
         else:
+            ref = clean(u.get("ref"), 40).upper()  # referral code, set once at signup
+            # ignore self-referral (ambassador using their own link)
             c.execute("""INSERT INTO users(email,name,picture,college,year,interests,skills,
-                         achievements,github,linkedin,created,last_seen)
-                         VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      (email, name, picture, college, year, interests, skills, ach, github, linkedin, now, now))
+                         achievements,github,linkedin,created,last_seen,ref)
+                         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                      (email, name, picture, college, year, interests, skills, ach, github,
+                       linkedin, now, now, ref))
     return get_user(email)
 
 
@@ -652,6 +659,152 @@ def delete_community_event(eid):
     with _LOCK, _conn() as c:
         c.execute("DELETE FROM community_events WHERE id=?", (clean(eid, 60),))
     return True
+
+
+# ---------- CAMPUS AMBASSADOR: referral codes, stats, leaderboard, certs ----------
+import hashlib as _hashlib
+import random as _random
+
+# Tier thresholds (sign-ups referred). Order matters.
+TIERS = [
+    ("Campus Ambassador", 1),
+    ("Star Ambassador", 25),
+    ("Campus Lead", 75),
+    ("National Ambassador", 150),
+]
+
+
+def _gen_code(name):
+    base = "".join(ch for ch in (name or "").upper() if ch.isalpha())[:6] or "AMB"
+    return base + str(_random.randint(1000, 9999))
+
+
+def create_ambassador(name, email, college=""):
+    """Register an ambassador and return their unique referral code (idempotent
+    per email)."""
+    name = clean(name, 80) or "Ambassador"
+    email = (email or "").strip().lower()
+    college = clean(college, 100)
+    with _LOCK, _conn() as c:
+        existing = c.execute("SELECT * FROM ambassadors WHERE email=?", (email,)).fetchone()
+        if existing:
+            return dict(existing)
+        # unique code
+        code = _gen_code(name)
+        while c.execute("SELECT 1 FROM ambassadors WHERE code=?", (code,)).fetchone():
+            code = _gen_code(name)
+        c.execute("INSERT INTO ambassadors(code,name,email,college,created) VALUES(?,?,?,?,?)",
+                  (code, name, email, college, time.time()))
+        return {"code": code, "name": name, "email": email, "college": college}
+
+
+def get_ambassador(code):
+    code = clean(code, 40).upper()
+    with _LOCK, _conn() as c:
+        r = c.execute("SELECT * FROM ambassadors WHERE code=?", (code,)).fetchone()
+        return dict(r) if r else None
+
+
+def get_ambassador_by_email(email):
+    email = (email or "").strip().lower()
+    with _LOCK, _conn() as c:
+        r = c.execute("SELECT * FROM ambassadors WHERE email=?", (email,)).fetchone()
+        return dict(r) if r else None
+
+
+def _referral_count(code):
+    with _LOCK, _conn() as c:
+        return c.execute("SELECT COUNT(*) n FROM users WHERE ref=?", (code,)).fetchone()["n"]
+
+
+def tier_for(count):
+    """Return (current_tier or None, next_tier or None, next_threshold or None)."""
+    current = None
+    for name, thr in TIERS:
+        if count >= thr:
+            current = (name, thr)
+    nxt = None
+    for name, thr in TIERS:
+        if count < thr:
+            nxt = (name, thr)
+            break
+    return current, nxt
+
+
+def ambassador_stats(code):
+    code = clean(code, 40).upper()
+    amb = get_ambassador(code)
+    if not amb:
+        return None
+    with _LOCK, _conn() as c:
+        rows = [dict(r) for r in c.execute(
+            "SELECT name,college,created FROM users WHERE ref=? ORDER BY created DESC", (code,))]
+    count = len(rows)
+    current, nxt = tier_for(count)
+    # unlocked tiers list
+    unlocked = [name for name, thr in TIERS if count >= thr]
+    referred = [{"name": r["name"], "college": r.get("college") or "—",
+                 "joined": r["created"]} for r in rows]
+    return {
+        "code": code, "name": amb["name"], "college": amb.get("college") or "",
+        "count": count,
+        "current_tier": current[0] if current else None,
+        "next_tier": nxt[0] if nxt else None,
+        "next_at": nxt[1] if nxt else None,
+        "unlocked_tiers": unlocked,
+        "tiers": [{"name": n, "at": t, "unlocked": count >= t} for n, t in TIERS],
+        "referred": referred,
+    }
+
+
+def leaderboard(limit=50):
+    """Top ambassadors by referred sign-ups."""
+    with _LOCK, _conn() as c:
+        rows = c.execute("""
+            SELECT a.code AS code, a.name AS name, a.college AS college,
+                   COUNT(u.email) AS count
+            FROM ambassadors a
+            LEFT JOIN users u ON u.ref = a.code
+            GROUP BY a.code
+            ORDER BY count DESC, a.created ASC
+            LIMIT ?""", (limit,)).fetchall()
+    out = []
+    for i, r in enumerate(rows):
+        d = dict(r)
+        cur, _ = tier_for(d["count"])
+        d["tier"] = cur[0] if cur else "—"
+        d["rank"] = i + 1
+        out.append(d)
+    return out
+
+
+def issue_cert(code, tier):
+    """Create/return a verifiable certificate id for an ambassador+tier, only if
+    they've actually unlocked that tier."""
+    amb = get_ambassador(code)
+    if not amb:
+        return None
+    tier = clean(tier, 40)
+    thr = dict(TIERS).get(tier)
+    if thr is None:
+        return None
+    if _referral_count(code) < thr:
+        return None  # not unlocked yet
+    cert_id = "HH-" + _hashlib.md5((code + "|" + tier).encode()).hexdigest()[:10].upper()
+    with _LOCK, _conn() as c:
+        if not c.execute("SELECT 1 FROM certs WHERE cert_id=?", (cert_id,)).fetchone():
+            c.execute("INSERT INTO certs(cert_id,code,name,tier,issued) VALUES(?,?,?,?,?)",
+                      (cert_id, code, amb["name"], tier, time.time()))
+    return {"cert_id": cert_id, "name": amb["name"], "tier": tier,
+            "college": amb.get("college") or "", "issued": time.time()}
+
+
+def verify_cert(cert_id):
+    cert_id = clean(cert_id, 40).upper()
+    with _LOCK, _conn() as c:
+        r = c.execute("SELECT cert_id,name,tier,issued FROM certs WHERE cert_id=?",
+                      (cert_id,)).fetchone()
+        return dict(r) if r else None
 
 
 def wipe_all():

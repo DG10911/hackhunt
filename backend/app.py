@@ -418,6 +418,57 @@ def me():
     return jsonify({"ok": bool(u), "user": u, "saved": db.list_saved(request.args.get("email", ""))})
 
 
+# ---------- Campus Ambassador: referral + leaderboard + certificates ----------
+@app.route("/api/ambassador/register", methods=["POST"])
+def ambassador_register():
+    try:
+        b = request.get_json(force=True) or {}
+        email = (b.get("email") or "").strip().lower()
+        if not email or "@" not in email:
+            return jsonify({"ok": False, "error": "Valid email required"}), 200
+        if db.is_email_banned(email):
+            return jsonify({"ok": False, "error": "account suspended"}), 403
+        if db.looks_malicious(b.get("name"), b.get("college")):
+            db.auto_defend(ip=get_ip(), email=email, kind="injection",
+                           detail="ambassador form", path="/api/ambassador/register")
+            return jsonify({"ok": False, "error": "blocked"}), 403
+        amb = db.create_ambassador(b.get("name"), email, b.get("college"))
+        return jsonify({"ok": True, "ambassador": amb})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:160]}), 200
+
+
+@app.route("/api/ambassador/stats")
+def ambassador_stats():
+    code = request.args.get("code", "")
+    email = request.args.get("email", "")
+    if not code and email:
+        amb = db.get_ambassador_by_email(email)
+        code = amb["code"] if amb else ""
+    s = db.ambassador_stats(code) if code else None
+    return jsonify({"ok": bool(s), "stats": s})
+
+
+@app.route("/api/leaderboard")
+def leaderboard():
+    return jsonify({"ok": True, "leaderboard": db.leaderboard(int(request.args.get("limit", 50)))})
+
+
+@app.route("/api/ambassador/cert", methods=["POST"])
+def ambassador_cert():
+    b = request.get_json(force=True) or {}
+    cert = db.issue_cert(b.get("code", ""), b.get("tier", ""))
+    if not cert:
+        return jsonify({"ok": False, "error": "Tier not unlocked yet"}), 200
+    return jsonify({"ok": True, "cert": cert})
+
+
+@app.route("/api/verify-cert")
+def verify_cert():
+    c = db.verify_cert(request.args.get("id", ""))
+    return jsonify({"ok": bool(c), "cert": c})
+
+
 @app.route("/api/save", methods=["POST"])
 def save():
     try:

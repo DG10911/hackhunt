@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campus Ambassador · HackHunt</title>
+<style>
+:root{--bg:#07070f;--card:#12121f;--card2:#1a1a2b;--line:#262640;--txt:#eef0fb;--mut:#9aa0bb;
+  --acc:#7c5cff;--acc2:#22d3a6;--gold:#f5b301;--danger:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:radial-gradient(1200px 600px at 80% -10%,rgba(124,92,255,.18),transparent),var(--bg);color:var(--txt);min-height:100vh}
+a{color:var(--acc)}
+.wrap{max-width:1000px;margin:0 auto;padding:24px 18px 60px}
+header{display:flex;align-items:center;gap:10px;padding:18px;border-bottom:1px solid var(--line)}
+header h1{font-size:1.1rem;margin:0;font-weight:800}
+.brand{font-weight:900;letter-spacing:.3px}.grad{background:linear-gradient(90deg,#7c5cff,#22d3a6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.spacer{flex:1}
+.btn{border:0;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer;background:var(--acc);color:#fff;font-size:.9rem}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+.btn.gold{background:linear-gradient(90deg,#f5b301,#ff8a3d);color:#1a1206}
+.btn.green{background:var(--acc2);color:#04211a}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:16px}
+.muted{color:var(--mut)}
+input{background:#0c0c17;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:11px 13px;width:100%;font-size:.95rem}
+label{font-size:.8rem;color:var(--mut);display:block;margin:10px 0 5px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.kpi{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center}
+.kpi b{font-size:1.9rem;display:block;font-weight:900}
+.kpi span{color:var(--mut);font-size:.8rem}
+.meter{height:14px;background:#0c0c17;border-radius:99px;overflow:hidden;border:1px solid var(--line);margin:10px 0}
+.meter>i{display:block;height:100%;background:linear-gradient(90deg,#7c5cff,#22d3a6);width:0;transition:width .6s}
+.tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px}
+.tier{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:16px;position:relative}
+.tier.on{border-color:var(--acc2);box-shadow:0 0 0 1px rgba(34,211,166,.3)}
+.tier h4{margin:0 0 4px}.tier .req{font-size:.8rem;color:var(--mut)}
+.tier .lockst{font-size:.78rem;margin-top:8px;font-weight:700}
+.badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:.7rem;font-weight:800}
+.badge.on{background:rgba(34,211,166,.16);color:var(--acc2)}.badge.off{background:#26263f;color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-weight:600;font-size:.78rem}
+.copybox{display:flex;gap:8px;align-items:center;background:#0c0c17;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-family:monospace;font-size:.85rem;word-break:break-all}
+.hide{display:none}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;place-items:center;padding:18px;z-index:50;overflow:auto}
+.modal.show{display:grid}
+.modal-inner{max-width:760px;width:100%}
+/* certificate */
+.cert{background:#fffdf7;color:#1a1530;border-radius:14px;padding:34px;position:relative;border:10px solid #1a1530;font-family:Georgia,serif}
+.cert .frame{border:2px solid var(--gold);border-radius:8px;padding:26px;text-align:center}
+.cert .seal{position:absolute;right:30px;bottom:26px;width:84px;height:84px}
+.cert h2{font-size:1.7rem;margin:6px 0;letter-spacing:1px;color:#1a1530}
+.cert .who{font-size:2.1rem;font-weight:900;margin:14px 0 6px;color:#5b3df5;font-family:Georgia,serif}
+.cert .tierline{font-size:1.15rem;color:#1a1530;margin:6px 0}
+.cert .desc{color:#444;max-width:520px;margin:12px auto;font-size:.95rem;line-height:1.5}
+.cert .foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:26px;font-size:.78rem;color:#555}
+.cert .sig{font-family:'Brush Script MT',cursive;font-size:1.4rem;color:#1a1530;border-top:1px solid #999;padding-top:4px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a2b;border:1px solid var(--line);color:#fff;padding:11px 18px;border-radius:10px;opacity:0;transition:.3s;z-index:80}
+.toast.show{opacity:1}
+@media(max-width:560px){.kpis{grid-template-columns:1fr 1fr}.cert .who{font-size:1.5rem}}
+</style></head><body>
+<header class="wrap" style="max-width:1000px;border-bottom:1px solid var(--line);margin:0 auto">
+  <span class="brand">Hack<span class="grad">Hunt</span></span>
+  <span class="muted" style="font-size:.85rem">· Campus Ambassador</span>
+  <span class="spacer"></span>
+  <a class="btn ghost" href="/">← Site</a>
+  <button class="btn ghost hide" id="logoutBtn">Logout</button>
+</header>
+
+<div class="wrap">
+  <!-- VERIFY VIEW (?verify=ID) -->
+  <div id="verifyView" class="hide">
+    <div class="card" style="text-align:center">
+      <h2 id="vTitle">Verifying certificate…</h2>
+      <div id="vBody" class="muted"></div>
+      <a class="btn" href="/ambassador.html" style="margin-top:14px;display:inline-block;text-decoration:none">Become an Ambassador</a>
+    </div>
+  </div>
+
+  <!-- AUTH VIEW -->
+  <div id="authView">
+    <div class="card">
+      <h2 style="margin-top:0">Campus Ambassador Program 🎓</h2>
+      <p class="muted">Spread HackHunt at your college, bring sign-ups with your referral link, and
+      unlock <b>verifiable certificates</b> + LinkedIn titles. No fees, ever.</p>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="tabJoin">Become an Ambassador</button>
+        <button class="btn ghost" id="tabLogin">I already have a code</button>
+      </div>
+
+      <div id="joinForm" style="margin-top:14px">
+        <label>Full name</label><input id="jName" placeholder="Your name">
+        <label>Email</label><input id="jEmail" type="email" placeholder="you@gmail.com">
+        <label>College</label><input id="jCollege" placeholder="Your college / university">
+        <button class="btn green" id="joinBtn" style="margin-top:14px">Get my referral code 🚀</button>
+        <p class="muted" id="joinMsg" style="font-size:.82rem"></p>
+      </div>
+
+      <div id="loginForm" class="hide" style="margin-top:14px">
+        <label>Your ambassador code or email</label><input id="lCode" placeholder="e.g. RAGHAV1234 or you@gmail.com">
+        <button class="btn" id="loginBtn" style="margin-top:14px">Open my dashboard</button>
+        <p class="muted" id="loginMsg" style="font-size:.82rem"></p>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">🏆 Leaderboard</h3>
+      <div style="overflow:auto"><table id="lbTable"><thead><tr><th>#</th><th>Ambassador</th><th>College</th><th>Tier</th><th>Sign-ups</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div id="dashView" class="hide">
+    <div class="card">
+      <div class="row"><h2 style="margin:0" id="dName">Welcome</h2><span class="spacer"></span>
+        <span class="badge on" id="dTier">—</span></div>
+      <p class="muted" id="dCollege" style="margin:4px 0 14px"></p>
+      <div class="kpis">
+        <div class="kpi"><b id="kCount">0</b><span>Sign-ups</span></div>
+        <div class="kpi"><b id="kRank">—</b><span>Leaderboard rank</span></div>
+        <div class="kpi"><b id="kNext">—</b><span>To next tier</span></div>
+      </div>
+      <label style="margin-top:16px">Your referral link — share this everywhere</label>
+      <div class="copybox"><span id="refLink"></span></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="copyBtn">Copy link</button>
+        <button class="btn green" id="waBtn">Share on WhatsApp</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Milestone progress</h3>
+      <div class="muted" id="meterLabel" style="font-size:.85rem"></div>
+      <div class="meter"><i id="meterFill"></i></div>
+      <div class="tiers" id="tierCards"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Students you brought (<span id="refCount">0</span>)</h3>
+      <div style="overflow:auto"><table id="refTable"><thead><tr><th>Name</th><th>College</th><th>Joined</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">🏆 Leaderboard</h3>
+      <div style="overflow:auto"><table id="lbTable2"><thead><tr><th>#</th><th>Ambassador</th><th>College</th><th>Tier</th><th>Sign-ups</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- CERTIFICATE MODAL -->
+<div class="modal" id="certModal"><div class="modal-inner">
+  <div id="certBox"></div>
+  <div class="row" style="justify-content:center;margin-top:14px">
+    <button class="btn green" id="dlCert">⬇ Download (PNG)</button>
+    <button class="btn" id="liCert">in Add to LinkedIn</button>
+    <button class="btn ghost" id="closeCert">Close</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE=(location.protocol==="http:"||location.protocol==="https:")?"":"http://localhost:5050";
+const $=s=>document.querySelector(s);
+function toast(t){const el=$("#toast");el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200);}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function fmtDate(ts){try{return new Date(ts*1000).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});}catch(e){return"";}}
+const ORIGIN=location.origin.includes("localhost")?"https://hackhunt.xyz":location.origin;
+let CODE=localStorage.getItem("hh_amb_code")||"";
+let STATS=null;
+
+// ---------- verify mode ----------
+const qVerify=new URLSearchParams(location.search).get("verify");
+if(qVerify){
+  $("#authView").classList.add("hide");$("#dashView").classList.add("hide");$("#verifyView").classList.remove("hide");
+  fetch(BASE+"/api/verify-cert?id="+encodeURIComponent(qVerify)).then(r=>r.json()).then(d=>{
+    if(d.ok){$("#vTitle").textContent="✅ Verified Certificate";
+      $("#vBody").innerHTML=`<p style="font-size:1.05rem;color:var(--txt)"><b>${esc(d.cert.name)}</b><br>${esc(d.cert.tier)} · HackHunt<br>ID: ${esc(d.cert.cert_id)} · Issued ${fmtDate(d.cert.issued)}</p>`;}
+    else{$("#vTitle").textContent="❌ Not found";$("#vBody").textContent="This certificate ID could not be verified.";}
+  }).catch(()=>{$("#vTitle").textContent="Error";});
+}
+
+// ---------- auth tabs ----------
+$("#tabJoin").onclick=()=>{$("#joinForm").classList.remove("hide");$("#loginForm").classList.add("hide");};
+$("#tabLogin").onclick=()=>{$("#loginForm").classList.remove("hide");$("#joinForm").classList.add("hide");};
+
+$("#joinBtn").onclick=async()=>{
+  const name=$("#jName").value.trim(),email=$("#jEmail").value.trim().toLowerCase(),college=$("#jCollege").value.trim();
+  if(!name||!email){$("#joinMsg").textContent="Name and email are required.";return;}
+  $("#joinMsg").textContent="Creating your code…";
+  try{
+    const r=await fetch(BASE+"/api/ambassador/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,email,college})});
+    const d=await r.json();
+    if(d.ok){CODE=d.ambassador.code;localStorage.setItem("hh_amb_code",CODE);openDash();}
+    else $("#joinMsg").textContent=d.error||"Could not register.";
+  }catch(e){$("#joinMsg").textContent="Network error.";}
+};
+$("#loginBtn").onclick=async()=>{
+  const v=$("#lCode").value.trim();if(!v){$("#loginMsg").textContent="Enter your code or email.";return;}
+  const q=v.includes("@")?("email="+encodeURIComponent(v.toLowerCase())):("code="+encodeURIComponent(v.toUpperCase()));
+  const r=await fetch(BASE+"/api/ambassador/stats?"+q);const d=await r.json();
+  if(d.ok){CODE=d.stats.code;localStorage.setItem("hh_amb_code",CODE);openDash();}
+  else $("#loginMsg").textContent="No ambassador found with that code/email.";
+};
+$("#logoutBtn").onclick=()=>{localStorage.removeItem("hh_amb_code");location.href="/ambassador.html";};
+
+// ---------- dashboard ----------
+async function openDash(){
+  const r=await fetch(BASE+"/api/ambassador/stats?code="+encodeURIComponent(CODE));
+  const d=await r.json();if(!d.ok){toast("Could not load dashboard");return;}
+  STATS=d.stats;
+  $("#authView").classList.add("hide");$("#dashView").classList.remove("hide");$("#logoutBtn").classList.remove("hide");
+  const s=STATS;
+  $("#dName").textContent="Hi, "+s.name.split(" ")[0]+" 👋";
+  $("#dCollege").textContent=(s.college||"")+" · Code: "+s.code;
+  $("#dTier").textContent=s.current_tier||"Getting started";
+  $("#kCount").textContent=s.count;
+  $("#kNext").textContent=s.next_at?((s.next_at-s.count)+" more"):"Max tier!";
+  const link=ORIGIN+"/?ref="+s.code;
+  $("#refLink").textContent=link;
+  $("#copyBtn").onclick=()=>{navigator.clipboard.writeText(link);toast("Link copied!");};
+  $("#waBtn").onclick=()=>{const msg=`Found this super useful 👇 *HackHunt* — saare hackathons & hiring challenges of India ek jagah. Free hai 👉 ${link}`;
+    window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");};
+  // milestone meter
+  const tiers=s.tiers;const maxAt=tiers[tiers.length-1].at;
+  const pct=Math.min(100,Math.round(s.count/maxAt*100));
+  $("#meterFill").style.width=pct+"%";
+  $("#meterLabel").textContent=s.next_tier?`${s.count} sign-ups · ${s.next_at-s.count} more to unlock ${s.next_tier}`:"All tiers unlocked! Legend 🏆";
+  // tier cards
+  $("#tierCards").innerHTML=tiers.map(t=>`<div class="tier ${t.unlocked?'on':''}">
+    <h4>${esc(t.name)}</h4><div class="req">${t.at} sign-up${t.at>1?'s':''}</div>
+    <div class="lockst">${t.unlocked?'<span class="badge on">✓ Unlocked</span>':'<span class="badge off">🔒 Locked</span>'}</div>
+    ${t.unlocked?`<button class="btn gold" style="margin-top:10px;width:100%" data-cert="${esc(t.name)}">Get certificate</button>`:''}</div>`).join("");
+  $("#tierCards").querySelectorAll("[data-cert]").forEach(b=>b.onclick=()=>showCert(b.dataset.cert));
+  // referred list
+  $("#refCount").textContent=s.count;
+  $("#refTable tbody").innerHTML=s.referred.length?s.referred.map(u=>`<tr><td>${esc(u.name||"Student")}</td><td>${esc(u.college||"—")}</td><td class="muted">${fmtDate(u.joined)}</td></tr>`).join(""):'<tr><td colspan="3" class="muted">No sign-ups yet — share your link to get started!</td></tr>';
+  loadLeaderboard("#lbTable2");
+}
+
+// ---------- leaderboard ----------
+async function loadLeaderboard(sel){
+  try{const d=await (await fetch(BASE+"/api/leaderboard")).json();
+    const medal=["🥇","🥈","🥉"];
+    document.querySelector(sel+" tbody").innerHTML=(d.leaderboard||[]).map(r=>`<tr>
+      <td>${medal[r.rank-1]||r.rank}</td><td>${esc(r.name)}</td><td class="muted">${esc(r.college||"—")}</td>
+      <td>${esc(r.tier)}</td><td><b>${r.count}</b></td></tr>`).join("")||'<tr><td colspan="5" class="muted">No ambassadors yet.</td></tr>';
+  }catch(e){}
+}
+
+// ---------- certificate ----------
+let CURRENT_CERT=null;
+async function showCert(tier){
+  const r=await fetch(BASE+"/api/ambassador/cert",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:CODE,tier})});
+  const d=await r.json();
+  if(!d.ok){toast(d.error||"Not unlocked yet");return;}
+  CURRENT_CERT=d.cert;
+  const verifyUrl=ORIGIN+"/ambassador.html?verify="+d.cert.cert_id;
+  $("#certBox").innerHTML=`<div class="cert" id="certCanvasSrc">
+    <div class="frame">
+      <div style="font-weight:900;letter-spacing:2px;color:#5b3df5">HACKHUNT</div>
+      <h2>CERTIFICATE OF ACHIEVEMENT</h2>
+      <div class="muted" style="color:#777">This is proudly presented to</div>
+      <div class="who">${esc(d.cert.name)}</div>
+      <div class="tierline">for outstanding contribution as a<br><b>${esc(d.cert.tier)}</b></div>
+      <div class="desc">In recognition of championing HackHunt across their campus and empowering
+      students across India to discover hackathons and opportunities.</div>
+      <div class="foot">
+        <div><div class="sig">HackHunt Team</div>Issued ${fmtDate(d.cert.issued)}</div>
+        <div style="text-align:right">ID: <b>${esc(d.cert.cert_id)}</b><br>Verify: hackhunt.xyz/ambassador.html?verify=${esc(d.cert.cert_id)}</div>
+      </div>
+    </div></div>`;
+  $("#certModal").classList.add("show");
+}
+$("#closeCert").onclick=()=>$("#certModal").classList.remove("show");
+$("#dlCert").onclick=()=>downloadCert();
+$("#liCert").onclick=()=>{
+  if(!CURRENT_CERT)return;
+  const d=CURRENT_CERT,now=new Date();
+  const u="https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME"
+    +"&name="+encodeURIComponent("HackHunt "+d.tier)
+    +"&organizationName="+encodeURIComponent("HackHunt")
+    +"&issueYear="+now.getFullYear()+"&issueMonth="+(now.getMonth()+1)
+    +"&certId="+encodeURIComponent(d.cert_id)
+    +"&certUrl="+encodeURIComponent(ORIGIN+"/ambassador.html?verify="+d.cert_id);
+  window.open(u,"_blank");
+};
+// render the cert DOM to PNG via SVG foreignObject (no external images -> no taint)
+function downloadCert(){
+  const node=$("#certCanvasSrc");const w=node.offsetWidth,h=node.offsetHeight;
+  const clone=node.cloneNode(true);
+  const html=`<div xmlns="http://www.w3.org/1999/xhtml">${new XMLSerializer().serializeToString(clone)}</div>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${html}</foreignObject></svg>`;
+  const img=new Image();
+  img.onload=()=>{const c=document.createElement("canvas");c.width=w*2;c.height=h*2;const ctx=c.getContext("2d");ctx.scale(2,2);ctx.fillStyle="#fffdf7";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0);
+    try{const a=document.createElement("a");a.download="HackHunt-Certificate-"+(CURRENT_CERT?CURRENT_CERT.cert_id:"cert")+".png";a.href=c.toDataURL("image/png");a.click();toast("Downloaded!");}
+    catch(e){toast("Use a screenshot if download is blocked");}};
+  img.onerror=()=>toast("Use a screenshot to save");
+  img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
+}
+
+// init
+if(!qVerify){
+  loadLeaderboard("#lbTable");
+  if(CODE)openDash();
+}
+</script>
+</body></html>
