@@ -746,12 +746,22 @@ def _current_email():
     return ""
 
 
+CANONICAL_HOST = os.environ.get("CANONICAL_HOST", "").strip().lower()
+
+
 @app.before_request
 def _gate():
     p = request.path
     ip = get_ip()
     ua = request.headers.get("User-Agent", "")
     owner_path = p.startswith("/api/owner")
+    # 0) canonical-domain redirect: send the *.railway.app link (and any other
+    #    host) to https://hackhunt.xyz. Skip health check so Railway monitoring
+    #    still gets a 200. Only active once CANONICAL_HOST env is set.
+    if CANONICAL_HOST and p != "/api/health":
+        host = (request.host or "").split(":")[0].lower()
+        if host and host != CANONICAL_HOST and not host.endswith(".cloudflareaccess.com"):
+            return redirect("https://" + CANONICAL_HOST + request.full_path.rstrip("?"), code=301)
     # 1) blocked IPs get nothing (except owner console so you can still manage)
     if not owner_path:
         try:
