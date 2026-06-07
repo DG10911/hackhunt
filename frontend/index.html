@@ -45,7 +45,8 @@ a{color:inherit}
 
 /* ---------- header ---------- */
 header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
-  background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--brd)}
+  background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--brd);
+  padding-top:env(safe-area-inset-top)}
 .bar{max-width:var(--maxw);margin:0 auto;padding:12px clamp(14px,3vw,28px);display:flex;align-items:center;gap:14px}
 .brand{font-family:Sora;font-weight:800;font-size:1.25rem;display:flex;align-items:center;gap:10px;white-space:nowrap}
 .logo{width:34px;height:34px;border-radius:10px;background:conic-gradient(from 200deg,var(--accent),var(--accent-2),var(--accent-3),var(--accent-4),var(--accent));
@@ -268,6 +269,59 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
 .toast .ic{color:var(--accent-2)}
 footer{text-align:center;color:var(--faint);padding:30px;font-size:.8rem;border-top:1px solid var(--brd)}
 .hide{display:none!important}
+/* ============ MOBILE / iPhone polish ============ */
+html{-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}                 /* never allow sideways scroll */
+*{-webkit-tap-highlight-color:transparent}
+img,svg,video{max-width:100%}
+/* respect iPhone notch / home-bar safe areas */
+.bar{padding-left:max(clamp(14px,3vw,28px),env(safe-area-inset-left));
+     padding-right:max(clamp(14px,3vw,28px),env(safe-area-inset-right))}
+footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
+
+@media(max-width:880px){
+  .nav{top:calc(60px + env(safe-area-inset-top));max-height:80vh;overflow-y:auto;
+       box-shadow:0 18px 40px rgba(0,0,0,.5);padding-bottom:24px}
+  .nav-btn{padding:15px 16px}               /* comfy 48px tap targets */
+}
+
+@media(max-width:560px){
+  :root{--maxw:100%}
+  .bar{gap:8px;padding-top:10px;padding-bottom:10px}
+  .brand{font-size:1.08rem}
+  .iconbtn,.avatar{width:40px;height:40px}
+  .hero{padding-top:26px;padding-bottom:14px}
+  .hero h1{font-size:1.7rem;line-height:1.12}
+  .hero p{font-size:.92rem;margin-top:12px}
+  .kicker{font-size:.72rem;margin-bottom:14px}
+  .stat b{font-size:1.3rem}
+  .controls{margin-top:18px;gap:11px}
+  .searchbar{padding:11px 13px}
+  .searchbar input{font-size:16px}          /* 16px stops iOS auto-zoom on focus */
+  input,select,textarea{font-size:16px}
+  .chips{gap:7px}
+  .chip{padding:9px 13px;font-size:.82rem}
+  .result-head{margin-top:18px}
+  .grid{gap:14px;margin-bottom:48px}
+  .card{border-radius:16px}
+  .thumb,.card img{height:150px}
+  .body{padding:14px 15px 16px;gap:8px}
+  .card-actions{flex-wrap:wrap}
+  .card-actions .btn{flex:1;justify-content:center;min-height:44px}
+  .btn{min-height:42px}
+  /* auth gate + profile fit the screen cleanly */
+  #gate .gate-card,.gate-card{width:94vw;max-width:94vw;padding:22px 18px;
+     max-height:90vh;overflow-y:auto}
+  #profileView,.panel{padding:16px 14px;border-radius:16px}
+  .field input,.field textarea{font-size:16px}
+}
+
+/* very small phones (iPhone SE etc.) */
+@media(max-width:380px){
+  .hero h1{font-size:1.5rem}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .nav-btn{font-size:.9rem}
+}
 </style>
 </head>
 <body>

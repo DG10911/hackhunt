@@ -57,6 +57,18 @@ th{color:var(--mut);font-weight:600;font-size:.78rem}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a2b;border:1px solid var(--line);color:#fff;padding:11px 18px;border-radius:10px;opacity:0;transition:.3s;z-index:80}
 .toast.show{opacity:1}
 @media(max-width:560px){.kpis{grid-template-columns:1fr 1fr}.cert .who{font-size:1.5rem}}
+html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
+img,svg{max-width:100%}*{-webkit-tap-highlight-color:transparent}
+@media(max-width:560px){
+  input,select,textarea{font-size:16px}    /* no iOS zoom-on-focus */
+  .wrap{padding:16px 14px 50px}
+  header.wrap{padding:12px 14px;flex-wrap:wrap}
+  .btn{min-height:42px}
+  .kpis{gap:8px}.kpi b{font-size:1.5rem}
+  table{font-size:.82rem}th,td{padding:7px 6px}
+  .copybox{font-size:.75rem}
+  .modal{padding:10px}
+}
 </style></head><body>
 <header class="wrap" style="max-width:1000px;border-bottom:1px solid var(--line);margin:0 auto">
   <span class="brand">Hack<span class="grad">Hunt</span></span>
