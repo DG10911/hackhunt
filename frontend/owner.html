@@ -117,6 +117,8 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
       <div class="controls" style="margin-top:12px">
         <input id="manualIp" placeholder="Block an IP manually (e.g. 49.36.x.x)" style="max-width:280px">
         <button class="btn danger" id="manualBlockBtn">Block IP</button>
+        <button class="btn warn" id="clearBlocksBtn">Clear ALL IP blocks</button>
+        <span class="muted" style="font-size:.78rem">Use if you or real students get caught by a shared mobile IP.</span>
       </div>
     </div>
 
@@ -340,8 +342,14 @@ async function delCommunity(id){
   const r=await ownerPost("/api/owner/community/delete",{id});const d=await r.json();
   renderCommunity(d.events||[]);
 }
+async function clearBlocks(){
+  if(!confirm("Lift ALL IP blocks? (Account bans stay.) Use this if you or real students got caught by a shared mobile IP."))return;
+  const r=await ownerPost("/api/owner/clear-blocks",{});const d=await r.json();
+  if(d.ok){alert("Cleared "+d.cleared+" IP block(s).");poll();}
+}
 document.addEventListener("click",e=>{
   if(e.target.id==="manualBlockBtn"){const ip=$("#manualIp").value.trim();if(ip)blockIp(ip);}
+  if(e.target.id==="clearBlocksBtn")clearBlocks();
   if(e.target.id==="ce_addBtn")addCommunity();
 });
 $("#maintBtn").onclick=async()=>{

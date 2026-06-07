@@ -420,16 +420,38 @@ def unblock_ip(ip):
     return True
 
 
+# Auto IP-blocks expire after this many seconds so innocent users on shared
+# mobile/CGNAT addresses recover automatically. Manual blocks never expire.
+AUTO_BLOCK_TTL = 24 * 3600
+
+
 def is_ip_blocked(ip):
     if not ip:
         return False
     with _LOCK, _conn() as c:
-        return c.execute("SELECT 1 FROM blocked_ips WHERE ip=?", (ip,)).fetchone() is not None
+        r = c.execute("SELECT reason,ts FROM blocked_ips WHERE ip=?", (ip,)).fetchone()
+        if not r:
+            return False
+        reason = (r["reason"] or "")
+        # auto-blocks self-expire; manual blocks (and email-ban evasion) stay until lifted
+        if reason.startswith("auto") and (time.time() - (r["ts"] or 0)) > AUTO_BLOCK_TTL:
+            c.execute("DELETE FROM blocked_ips WHERE ip=?", (ip,))
+            return False
+        return True
 
 
 def list_blocked_ips():
     with _LOCK, _conn() as c:
         return [dict(r) for r in c.execute("SELECT ip,reason,ts FROM blocked_ips ORDER BY ts DESC")]
+
+
+def clear_all_blocks():
+    """Emergency recovery: lift every IP block (keeps account bans)."""
+    with _LOCK, _conn() as c:
+        n = c.execute("SELECT COUNT(*) n FROM blocked_ips").fetchone()["n"]
+        c.execute("DELETE FROM blocked_ips")
+        c.execute("DELETE FROM strikes")
+    return n
 
 
 def ban_user(email, reason=""):

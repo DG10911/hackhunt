@@ -798,6 +798,14 @@ def owner_wipe():
     return jsonify({"ok": True})
 
 
+@app.route("/api/owner/clear-blocks", methods=["POST"])
+def owner_clear_blocks():
+    if not _is_owner():
+        return jsonify({"ok": False}), 401
+    n = db.clear_all_blocks()
+    return jsonify({"ok": True, "cleared": n, "blocked_ips": db.list_blocked_ips()})
+
+
 # Fields that are ALWAYS URLs / identifiers from trusted OAuth or our own UI.
 # They are validated elsewhere and never rendered as raw HTML, so scanning them
 # only produces false positives (e.g. a Google profile-picture URL). Skip them.
@@ -854,6 +862,8 @@ def _current_email():
 
 
 CANONICAL_HOST = os.environ.get("CANONICAL_HOST", "").strip().lower()
+# Your own IPs — never blocked or scanned. Set OWNER_IPS="1.2.3.4,5.6.7.8" in env.
+OWNER_IPS = {x.strip() for x in os.environ.get("OWNER_IPS", "").split(",") if x.strip()}
 
 
 @app.before_request
@@ -862,6 +872,12 @@ def _gate():
     ip = get_ip()
     ua = request.headers.get("User-Agent", "")
     owner_path = p.startswith("/api/owner")
+    # the owner console page itself is always reachable, so you can never lock
+    # yourself out of unblocking — even from a blocked/CGNAT IP
+    console = owner_path or p == "/owner.html"
+    # your own allowlisted IPs bypass all security checks
+    if ip in OWNER_IPS:
+        return
     # 0) canonical-domain redirect: send the *.railway.app link (and any other
     #    host) to https://hackhunt.xyz. Skip health check so Railway monitoring
     #    still gets a 200. Only active once CANONICAL_HOST env is set.
@@ -870,7 +886,7 @@ def _gate():
         if host and host != CANONICAL_HOST and not host.endswith(".cloudflareaccess.com"):
             return redirect("https://" + CANONICAL_HOST + request.full_path.rstrip("?"), code=301)
     # 1) blocked IPs get nothing (except owner console so you can still manage)
-    if not owner_path:
+    if not console:
         try:
             if db.is_ip_blocked(ip):
                 return jsonify({"blocked": True, "message": "Access denied."}), 403
@@ -926,15 +942,11 @@ def _gate():
                                 "message": "Malicious request blocked."}), 403
         except Exception:
             pass
-    # 5) rate-limit write APIs — repeated flooding escalates to an auto-block
+    # 5) rate-limit write APIs — a soft 429 only (NO permanent ban). On shared
+    #    mobile/CGNAT IPs many real students share one address, so flooding alone
+    #    must never hard-block. Real attacks are caught by the payload scanner above.
     if request.method == "POST" and p.startswith("/api/") and not owner_path:
         if not _rate_ok(ip):
-            strikes = db.record_strike(ip, 1)
-            if strikes >= 5:  # sustained flood => treat as attack
-                db.auto_defend(ip=ip, email=_current_email(), kind="flood",
-                               detail="rate-limit exceeded %d times" % strikes,
-                               path=p, severity="medium", ua=ua)
-                return jsonify({"blocked": True, "message": "Access denied."}), 403
             return jsonify({"error": "Too many requests, slow down."}), 429
     # 4) maintenance freeze
     if p.startswith("/api/") and db.get_setting("maintenance", "0") == "1":
@@ -1042,6 +1054,13 @@ def start_background():
 
 
 db.init()
+# Emergency recovery: set CLEAR_BLOCKS=1 in env + redeploy to lift every IP block
+# (e.g. if you got caught by a shared/CGNAT block). Remove the var afterwards.
+if os.environ.get("CLEAR_BLOCKS", "").strip() in ("1", "true", "yes"):
+    try:
+        print("[recovery] CLEAR_BLOCKS set — cleared %d IP block(s)" % db.clear_all_blocks())
+    except Exception as e:
+        print("[recovery] clear failed:", e)
 _load_disk()
 start_background()   # runs on import too, so hosting (gunicorn) keeps data fresh
 
