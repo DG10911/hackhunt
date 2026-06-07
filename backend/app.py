@@ -228,10 +228,11 @@ def aggregate():
             meta.append({"platform": name, "status": status, "count": len(items),
                          "seconds": took, "error": err})
 
-    live_platforms = {m["platform"] for m in meta if m["status"] == "live"}
+    # Always include curated, verified cross-platform events (Unstop, Devpost,
+    # MNC, Govt, Hack2skill...) so the feed shows real variety even when those
+    # platforms' scrapers are blocked on the server. Dedupe handles overlaps.
     for s in SAMPLE:
-        if s["platform"] not in live_platforms:
-            results.append({**s, "sample": True})
+        results.append({**s, "sample": True})
 
     seen, deduped = set(), []
     for r in results:
@@ -247,7 +248,31 @@ def aggregate():
     except Exception as e:
         print("[db] archive failed:", e)
     active = [x for x in deduped if not is_ended(x)]
+    active = _balance_by_platform(active)
     return active, meta
+
+
+def _balance_by_platform(items):
+    """Round-robin interleave events across platforms so no single source
+    (e.g. Devfolio) dominates the top of the feed. Preserves each platform's
+    internal order."""
+    from collections import OrderedDict
+    buckets = OrderedDict()
+    for it in items:
+        p = (it.get("platform") or "Other").strip() or "Other"
+        buckets.setdefault(p, []).append(it)
+    mixed, lists = [], [list(v) for v in buckets.values()]
+    i = 0
+    while any(lists):
+        lst = lists[i % len(lists)]
+        if lst:
+            mixed.append(lst.pop(0))
+        if not lists[i % len(lists)]:
+            lists = [l for l in lists if l]
+            i = 0
+            continue
+        i += 1
+    return mixed
 
 
 def _do_refresh():

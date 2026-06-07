@@ -47,4 +47,16 @@ SAMPLE = [
      "location": "Bengaluru, India", "starts": "2026-12-05", "ends": "2026-12-07",
      "deadline": "2026-11-20", "prize": "$200,000", "tags": ["Web3", "Blockchain"],
      "category": "Hackathon", "image": None, "participants": 10000, "verified": True, "dates_confirmed": False},
+
+    # ---- Verified LIVE (June 2026) — confirmed open, real apply links ----
+    {"id": "s-samsung-sft", "title": "Samsung Solve for Tomorrow 2026", "organizer": "Samsung India",
+     "platform": "Internshala", "url": "https://internshala.com/competitions/samsung-solve-for-tomorrow-2026/",
+     "mode": "Hybrid", "location": "India (ages 14–22)", "starts": "2026-05-07", "ends": "2026-07-03",
+     "deadline": "2026-07-03", "prize": "Grants up to ₹2,00,00,000", "tags": ["Social Impact", "AI", "Innovation", "Student"],
+     "category": "Ideathon", "image": None, "participants": 70000, "verified": True, "dates_confirmed": True},
+    {"id": "s-odoo", "title": "Odoo Hackathon 2026", "organizer": "Odoo",
+     "platform": "Internshala", "url": "https://internshala.com/competitions/odoo-hackathon-2026/",
+     "mode": "Hybrid", "location": "India", "starts": "2026-07-12", "ends": "2026-09-06",
+     "deadline": "2026-07-11", "prize": "Cash + Goodies", "tags": ["Coding", "Open Innovation"],
+     "category": "Hackathon", "image": None, "participants": 30000, "verified": True, "dates_confirmed": True},
 ]
