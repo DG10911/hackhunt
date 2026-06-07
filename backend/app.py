@@ -112,6 +112,18 @@ def _security_headers(resp):
     resp.headers["X-XSS-Protection"] = "1; mode=block"
     resp.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    resp.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https://accounts.google.com; "
+        "frame-src https://accounts.google.com; "
+        "frame-ancestors 'self'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "object-src 'none'")
     return resp
 
 TTL = 60 * 30  # 30 min
@@ -434,6 +446,55 @@ def stats():
 OWNER_USER = os.environ.get("OWNER_USER", "owner")
 OWNER_PASS = os.environ.get("OWNER_PASS", "hackhunt-secret-2026")
 OWNER_TOKEN = os.environ.get("OWNER_TOKEN", "owner-" + str(abs(hash(OWNER_PASS)) % 10**10))
+# Optional 2FA: set OWNER_TOTP_SECRET (base32) to require a 6-digit code at login.
+OWNER_TOTP_SECRET = os.environ.get("OWNER_TOTP_SECRET", "").strip().replace(" ", "").upper()
+
+# Owner-login brute-force lockout (per IP, in-memory)
+_OWNER_FAILS = {}          # ip -> [timestamps of recent failures]
+_LOCK_MAX = 5              # attempts
+_LOCK_WINDOW = 15 * 60     # within 15 min
+_LOCK_FOR = 15 * 60        # locked out for 15 min
+
+
+def _owner_locked(ip):
+    now = time.time()
+    fails = [t for t in _OWNER_FAILS.get(ip, []) if now - t < _LOCK_FOR]
+    _OWNER_FAILS[ip] = fails
+    return len(fails) >= _LOCK_MAX
+
+
+def _owner_fail(ip):
+    _OWNER_FAILS.setdefault(ip, []).append(time.time())
+
+
+def _owner_reset(ip):
+    _OWNER_FAILS.pop(ip, None)
+
+
+def _totp_now(secret, drift=0):
+    """RFC-6238 TOTP (30s, 6 digits, SHA1) using only the standard library."""
+    import base64
+    import hashlib
+    import hmac
+    import struct
+    try:
+        key = base64.b32decode(secret + "=" * ((8 - len(secret) % 8) % 8), casefold=True)
+    except Exception:
+        return None
+    counter = int(time.time() // 30) + drift
+    msg = struct.pack(">Q", counter)
+    h = hmac.new(key, msg, hashlib.sha1).digest()
+    o = h[-1] & 0x0F
+    code = (struct.unpack(">I", h[o:o + 4])[0] & 0x7FFFFFFF) % 1000000
+    return "%06d" % code
+
+
+def _totp_ok(secret, code):
+    code = str(code or "").strip()
+    if not code.isdigit() or len(code) != 6:
+        return False
+    # accept current window +/- 1 step (clock drift tolerance)
+    return any(_totp_now(secret, d) == code for d in (-1, 0, 1))
 
 
 def _is_owner():
@@ -454,10 +515,45 @@ def track():
 
 @app.route("/api/owner/login", methods=["POST"])
 def owner_login():
+    import hmac as _hmac
+    ip = get_ip()
+    if _owner_locked(ip):
+        return jsonify({"ok": False, "error": "Too many attempts. Try again later.",
+                        "locked": True}), 429
     b = request.get_json(force=True) or {}
-    if b.get("user") == OWNER_USER and b.get("pass") == OWNER_PASS:
-        return jsonify({"ok": True, "token": OWNER_TOKEN})
-    return jsonify({"ok": False, "error": "invalid credentials"}), 401
+    user_ok = _hmac.compare_digest(str(b.get("user", "")), OWNER_USER)
+    pass_ok = _hmac.compare_digest(str(b.get("pass", "")), OWNER_PASS)
+    if not (user_ok and pass_ok):
+        _owner_fail(ip)
+        db.log_threat(ip=ip, email="", kind="owner_login_fail",
+                      detail="bad owner credentials", path="/api/owner/login",
+                      action="logged", severity="high", ua=request.headers.get("User-Agent", ""))
+        return jsonify({"ok": False, "error": "invalid credentials"}), 401
+    # password correct -> enforce 2FA if configured
+    if OWNER_TOTP_SECRET:
+        if not _totp_ok(OWNER_TOTP_SECRET, b.get("code")):
+            _owner_fail(ip)
+            return jsonify({"ok": False, "error": "2FA code required or invalid.",
+                            "need_2fa": True}), 401
+    _owner_reset(ip)
+    return jsonify({"ok": True, "token": OWNER_TOKEN, "twofa": bool(OWNER_TOTP_SECRET)})
+
+
+@app.route("/api/owner/2fa-setup", methods=["POST"])
+def owner_2fa_setup():
+    """Authenticated helper: generate a fresh TOTP secret + otpauth URL so the
+    owner can add HackHunt to Google Authenticator. Set the secret as
+    OWNER_TOTP_SECRET in env to activate. Requires current owner token."""
+    if not _is_owner():
+        return jsonify({"ok": False}), 401
+    import base64
+    import os as _os
+    secret = base64.b32encode(_os.urandom(20)).decode().rstrip("=")
+    label = "HackHunt%20Owner"
+    otpauth = ("otpauth://totp/%s?secret=%s&issuer=HackHunt&algorithm=SHA1&digits=6&period=30"
+               % (label, secret))
+    return jsonify({"ok": True, "secret": secret, "otpauth": otpauth,
+                    "active": bool(OWNER_TOTP_SECRET)})
 
 
 @app.route("/api/owner/overview")
@@ -482,6 +578,7 @@ def owner_overview():
         "activity": db.recent_activity(),
         "users": db.all_users(),
         "blocked_ips": blocked,
+        "banned_users": db.list_banned_emails(),
         "threats": threats,
         "threat_stats": db.threat_stats(),
         "stats": db.stats(),
@@ -539,6 +636,18 @@ def owner_delete_user():
     return jsonify({"ok": True, "users": db.all_users()})
 
 
+@app.route("/api/owner/unban-user", methods=["POST"])
+def owner_unban_user():
+    if not _is_owner():
+        return jsonify({"ok": False}), 401
+    b = request.get_json(force=True) or {}
+    db.unban_user(b.get("email", ""))
+    if b.get("ip"):                        # optionally lift their blocked IP too
+        db.unblock_ip(b.get("ip"))
+    return jsonify({"ok": True, "banned": db.list_banned_emails(),
+                    "blocked_ips": db.list_blocked_ips()})
+
+
 @app.route("/api/owner/community/add", methods=["POST"])
 def owner_community_add():
     if not _is_owner():
@@ -582,31 +691,50 @@ def owner_wipe():
     return jsonify({"ok": True})
 
 
+# Fields that are ALWAYS URLs / identifiers from trusted OAuth or our own UI.
+# They are validated elsewhere and never rendered as raw HTML, so scanning them
+# only produces false positives (e.g. a Google profile-picture URL). Skip them.
+_SAFE_KEYS = {
+    "picture", "image", "img", "avatar", "photo", "thumbnail",
+    "email", "url", "ticket_url", "link", "href",
+    "github", "linkedin", "otpauth", "sid", "code", "token", "pass",
+}
+
+
 def _request_payloads():
-    """Everything an attacker could inject: path, query values, JSON/form body."""
-    vals = [request.path, request.query_string.decode("utf-8", "ignore")]
+    """(key, value) pairs an attacker could inject, EXCLUDING trusted URL/id
+    fields. Scans path, query values, and JSON/form body recursively."""
+    pairs = [("_path", request.path),
+             ("_query", request.query_string.decode("utf-8", "ignore"))]
     try:
-        vals += [str(v) for v in request.args.values()]
+        for k, v in request.args.items():
+            if k.lower() not in _SAFE_KEYS:
+                pairs.append((k, str(v)))
     except Exception:
         pass
     try:
         if request.is_json:
             j = request.get_json(silent=True) or {}
-            def walk(o):
+
+            def walk(o, key=""):
                 if isinstance(o, dict):
-                    for v in o.values():
-                        walk(v)
+                    for k, v in o.items():
+                        if str(k).lower() in _SAFE_KEYS:
+                            continue
+                        walk(v, str(k))
                 elif isinstance(o, (list, tuple)):
                     for v in o:
-                        walk(v)
+                        walk(v, key)
                 else:
-                    vals.append(str(o))
+                    pairs.append((key, str(o)))
             walk(j)
         elif request.form:
-            vals += [str(v) for v in request.form.values()]
+            for k, v in request.form.items():
+                if k.lower() not in _SAFE_KEYS:
+                    pairs.append((k, str(v)))
     except Exception:
         pass
-    return vals
+    return pairs
 
 
 def _current_email():
@@ -645,6 +773,18 @@ def _gate():
                 return jsonify({"blocked": True, "message": "Access denied."}), 403
         except Exception:
             pass
+    # 1c) CSRF guard: state-changing POSTs must come from our own origin.
+    #     Blocks classic cross-site request forgery. Same-origin & non-browser
+    #     clients (no Origin header) are allowed; a *mismatched* Origin is not.
+    if request.method == "POST" and p.startswith("/api/"):
+        origin = request.headers.get("Origin", "")
+        if origin:
+            host = request.host_url.rstrip("/")
+            allowed = {host}
+            extra = os.environ.get("ALLOWED_ORIGINS", "")
+            allowed |= {o.strip().rstrip("/") for o in extra.split(",") if o.strip()}
+            if not any(origin.rstrip("/") == a for a in allowed):
+                return jsonify({"error": "cross-origin request blocked"}), 403
     # 2) scanner/attack-tool user agents -> instant ban
     if not owner_path and db.is_bad_ua(ua):
         db.auto_defend(ip=ip, email="", kind="scanner_tool",
@@ -660,7 +800,7 @@ def _gate():
     # 4) AUTO-SCAN every request body/query for injection -> instant auto-defend
     if not owner_path and p != "/api/health":
         try:
-            kind, sev, hit = db.scan_values(_request_payloads())
+            kind, sev, hit = db.scan_pairs(_request_payloads())
             if kind:
                 db.auto_defend(ip=ip, email=_current_email(), kind=kind,
                                detail=hit, path=p, severity=sev or "high", ua=ua)

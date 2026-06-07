@@ -328,6 +328,21 @@ def scan_values(vals):
     return worst
 
 
+def scan_pairs(pairs):
+    """Scan (key, value) pairs. Returns (kind, severity, 'field=…: hit') for the
+    worst match, so the threat log shows exactly WHICH field was malicious."""
+    worst = (None, None, "")
+    order = {"critical": 3, "high": 2, "medium": 1}
+    for key, val in pairs:
+        if val is None:
+            continue
+        k, s = classify_threat(val)
+        if k and order.get(s, 0) > order.get(worst[1], 0):
+            field = (str(key) or "?").lstrip("_")
+            worst = (k, s, "%s: %s" % (field, str(val)[:160]))
+    return worst
+
+
 def is_bad_ua(ua):
     return bool(_BAD_UA.search(str(ua or "")))
 
@@ -420,6 +435,21 @@ def ban_user(email, reason=""):
         c.execute("INSERT OR REPLACE INTO banned_emails(email,reason,ts) VALUES(?,?,?)",
                   (email, clean(reason, 120), time.time()))
     return True
+
+
+def unban_user(email):
+    """Reverse a ban (e.g. a false positive): remove from banlist. Does NOT
+    recreate their account — they just sign in again normally."""
+    email = (email or "").strip().lower()
+    with _LOCK, _conn() as c:
+        c.execute("DELETE FROM banned_emails WHERE email=?", (email,))
+    return True
+
+
+def list_banned_emails():
+    with _LOCK, _conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT email,reason,ts FROM banned_emails ORDER BY ts DESC")]
 
 
 def is_email_banned(email):

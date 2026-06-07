@@ -64,6 +64,7 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
     <p>Restricted. Authorized access only.</p>
     <input id="ou" placeholder="Owner ID" autocomplete="off">
     <input id="op" type="password" placeholder="Secret password">
+    <input id="oc" inputmode="numeric" maxlength="6" placeholder="2FA code (if enabled)" autocomplete="off">
     <button class="btn primary" type="submit">Enter dashboard</button>
     <p class="muted" id="loginErr" style="color:var(--danger);margin-top:12px"></p>
   </form>
@@ -117,6 +118,11 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
         <input id="manualIp" placeholder="Block an IP manually (e.g. 49.36.x.x)" style="max-width:280px">
         <button class="btn danger" id="manualBlockBtn">Block IP</button>
       </div>
+    </div>
+
+    <div class="panel">
+      <h2>🚫 Banned users <span class="muted" style="font-size:.8rem">(unban if it was a false positive)</span></h2>
+      <div class="feed" id="bannedList"></div>
     </div>
 
     <div class="panel">
@@ -175,14 +181,16 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;",
 function fmtTime(ts){try{return new Date(ts*1000).toLocaleTimeString();}catch(e){return"";}}
 function ago(ts){const s=Math.round(Date.now()/1000-ts);return s<60?s+"s":Math.round(s/60)+"m";}
 
-async function login(u,p){
+async function login(u,p,code){
   const r=await fetch(BASE+"/api/owner/login",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({user:u,pass:p})});
+    body:JSON.stringify({user:u,pass:p,code})});
   const d=await r.json();
   if(d.ok){TOKEN=d.token;sessionStorage.setItem("hh_owner_token",TOKEN);showDash();}
+  else if(r.status===429)$("#loginErr").textContent="Too many attempts. Locked for ~15 min.";
+  else if(d.need_2fa)$("#loginErr").textContent="Enter your 6-digit 2FA code.";
   else $("#loginErr").textContent="Invalid credentials.";
 }
-$("#loginForm").onsubmit=e=>{e.preventDefault();login($("#ou").value.trim(),$("#op").value);};
+$("#loginForm").onsubmit=e=>{e.preventDefault();login($("#ou").value.trim(),$("#op").value,$("#oc").value.trim());};
 $("#logoutBtn").onclick=()=>{sessionStorage.removeItem("hh_owner_token");location.reload();};
 
 function showDash(){$("#loginView").classList.add("hide");$("#dashView").classList.remove("hide");poll();loadCommunity();}
@@ -238,6 +246,11 @@ async function poll(){
       <span class="who">${esc(b.ip)}</span><span class="meta">${esc(b.reason||"")}${loc?" · 📍"+esc(loc):""}</span>
       <button class="btn ghost" style="padding:4px 8px;font-size:.7rem" data-unblock="${esc(b.ip)}">Unblock</button></div>`;}).join(""):'<p class="muted">No blocked IPs.</p>';
     $("#blockedList").querySelectorAll("[data-unblock]").forEach(b=>b.onclick=()=>unblockIp(b.dataset.unblock));
+    // banned users (with unban)
+    $("#bannedList").innerHTML=(d.banned_users||[]).length?d.banned_users.map(b=>`<div class="row">
+      <span class="who">${esc(b.email)}</span><span class="meta">${esc(b.reason||"")}</span>
+      <button class="btn" style="padding:4px 8px;font-size:.7rem;background:#16a34a;color:#fff" data-unban="${esc(b.email)}">Unban</button></div>`).join(""):'<p class="muted">No banned users.</p>';
+    $("#bannedList").querySelectorAll("[data-unban]").forEach(b=>b.onclick=()=>unbanUser(b.dataset.unban));
     // threat log (auto-defense) with severity colours
     const sevColor={critical:["#7f1d1d","#fecaca"],high:["#9a3412","#fed7aa"],medium:["#854d0e","#fde68a"]};
     $("#threatList").innerHTML=(d.threats||[]).length?d.threats.map(t=>{const c=sevColor[t.severity]||["#374151","#e5e7eb"];
@@ -270,6 +283,10 @@ async function blockIp(ip){
   await ownerPost("/api/owner/block-ip",{ip,reason:"manual"});poll();
 }
 async function unblockIp(ip){await ownerPost("/api/owner/unblock-ip",{ip});poll();}
+async function unbanUser(email){
+  if(!confirm("Unban "+email+"? They'll be able to sign in again."))return;
+  await ownerPost("/api/owner/unban-user",{email});poll();
+}
 
 // ---- community events admin ----
 async function loadCommunity(){
