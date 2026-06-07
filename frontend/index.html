@@ -82,6 +82,9 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
 .shield.off svg{color:#9ca3af}
 @keyframes shieldPulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 6px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
 @media(max-width:720px){.shield .shield-txt{display:none}.shield{padding:6px}}
+.search-clear{background:var(--surface-2);border:1px solid var(--brd);color:var(--muted);
+  width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.85rem;flex:none;display:grid;place-items:center}
+.search-clear:hover{color:var(--txt)}
 
 /* mobile nav drawer — premium slide-in panel */
 .menu-toggle{display:none}
@@ -102,12 +105,15 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
   .nav.open{transform:translateX(0)}
   .nav-btn{justify-content:flex-start;font-size:1rem;padding:15px 16px;border-radius:13px;width:100%;
     color:var(--txt);transition:background .15s}
-  .nav-btn [data-i]{width:20px;height:20px;color:var(--accent-2)}
+  .nav-btn svg{width:20px;height:20px;color:var(--accent-2)}
   .nav-btn.active{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 22%,transparent),transparent);
     color:#fff;box-shadow:inset 3px 0 0 var(--accent)}
-  /* hamburger -> X morph */
-  .menu-toggle{position:relative}
-  body.nav-open .menu-toggle [data-i]{opacity:0}
+  /* declutter the header so the menu button is always visible & tappable */
+  .shield{display:none}
+  #refreshBtn,#themeBtn{display:none}
+  .menu-toggle{flex:0 0 auto;width:44px;height:44px;z-index:61}
+  .menu-toggle svg{width:24px;height:24px}
+  body.nav-open .menu-toggle{transform:rotate(90deg);transition:transform .25s}
   body.nav-open{overflow:hidden}
 }
 
@@ -314,7 +320,7 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
   .kicker{font-size:.72rem;margin-bottom:14px}
   .stat b{font-size:1.3rem}
   .controls{margin-top:18px;gap:11px}
-  .searchbar{padding:11px 13px}
+  .searchbar{padding:11px 13px;position:sticky;top:calc(56px + env(safe-area-inset-top));z-index:40}
   .searchbar input{font-size:16px}          /* 16px stops iOS auto-zoom on focus */
   input,select,textarea{font-size:16px}
   .chips{gap:7px}
@@ -385,6 +391,7 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
   <div class="searchbar">
     <span data-i="search"></span>
     <input id="search" placeholder="Search events, organizers, tech, prizes…" />
+    <button id="searchClear" class="search-clear" aria-label="Clear search" style="display:none">✕</button>
   </div>
   <div class="filter-row"><span class="filter-label"><span data-i="sparkles"></span>Quick</span><div class="chips" id="quickChips"></div></div>
   <div class="filter-row" id="catRow"><span class="filter-label"><span data-i="layers"></span>Category</span><div class="chips" id="catChips"></div></div>
@@ -966,7 +973,10 @@ function renderResources(){
 }
 
 // ===================== TOP / THEME / SEARCH / NAV =====================
-let st;$("#search").oninput=e=>{clearTimeout(st);st=setTimeout(()=>{q=e.target.value.toLowerCase().trim();render();},170);};
+let st;$("#search").oninput=e=>{clearTimeout(st);
+  $("#searchClear").style.display=e.target.value?"grid":"none";
+  st=setTimeout(()=>{q=e.target.value.toLowerCase().trim();render();},170);};
+$("#searchClear").onclick=()=>{$("#search").value="";q="";$("#searchClear").style.display="none";render();$("#search").focus();};
 $("#refreshBtn").onclick=()=>{commLoaded=false;COMMUNITY=[];load(true);};
 $("#themeBtn").onclick=()=>{const r=document.documentElement;const n=r.dataset.theme==="dark"?"light":"dark";r.dataset.theme=n;
   localStorage.setItem("hh_theme",n);$("#themeBtn").innerHTML=svg(n==="dark"?"moon":"sun");};
