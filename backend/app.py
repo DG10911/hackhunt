@@ -406,10 +406,40 @@ def auth():
             if email:
                 db.ban_user(email, "auto: injection attempt")
             return jsonify({"ok": False, "error": "blocked"}), 403
+        ref = (b.get("ref") or "").strip().upper()
+        was_new = bool(ref) and db.get_user(email) is None
         u = db.upsert_user(b)
+        if was_new:                      # this signup may have unlocked a tier
+            threading.Thread(target=_maybe_tier_email, args=(ref,), daemon=True).start()
         return jsonify({"ok": True, "user": u})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:160]}), 200
+
+
+def _maybe_tier_email(code):
+    """If this new referral pushed the ambassador exactly onto a tier, email them
+    a congrats + certificate link. Best-effort (needs SMTP configured)."""
+    try:
+        count = db._referral_count(code)
+        tier = next((n for n, t in db.TIERS if t == count), None)  # exact hit
+        if not tier:
+            return
+        amb = db.get_ambassador(code)
+        if not amb or "@" not in (amb.get("email") or ""):
+            return
+        import emailer
+        url = "https://hackhunt.xyz/ambassador.html"
+        html = f"""<div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:auto">
+          <h2 style="color:#7c5cff">🎉 Congrats, {amb['name'].split(' ')[0]}! You unlocked {tier}</h2>
+          <p style="color:#444">You've brought <b>{count} sign-ups</b> to HackHunt — amazing work!
+          Your <b>{tier}</b> certificate is now unlocked.</p>
+          <p><a href="{url}" style="background:#7c5cff;color:#fff;padding:11px 20px;border-radius:8px;
+          text-decoration:none">Claim your certificate →</a></p>
+          <p style="color:#999;font-size:12px;margin-top:20px">Add it to LinkedIn in one click from your
+          ambassador dashboard. Keep going for the next tier! — Team HackHunt</p></div>"""
+        emailer.send_email(amb["email"], f"🎉 You unlocked {tier} on HackHunt!", html)
+    except Exception as e:
+        print("[tier-email] error:", e)
 
 
 @app.route("/api/me")
@@ -655,6 +685,7 @@ def owner_overview():
         "users": db.all_users(),
         "blocked_ips": blocked,
         "banned_users": db.list_banned_emails(),
+        "ambassadors": db.leaderboard(100),
         "threats": threats,
         "threat_stats": db.threat_stats(),
         "stats": db.stats(),

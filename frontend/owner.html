@@ -154,6 +154,13 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
     </div>
 
     <div class="panel">
+      <h2>🎓 Campus Ambassadors <span class="muted" style="font-size:.8rem">(referrals — watch for sudden spikes = possible fake signups)</span></h2>
+      <div style="overflow:auto"><table id="ambTbl">
+        <thead><tr><th>#</th><th>Name</th><th>College</th><th>Code</th><th>Tier</th><th>Sign-ups</th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+
+    <div class="panel">
       <h2>🚨 Auto-defense threat log <span class="muted" style="font-size:.8rem">(attacks blocked automatically)</span></h2>
       <div class="feed" id="threatList"></div>
     </div>
@@ -251,6 +258,10 @@ async function poll(){
       <span class="who">${esc(b.email)}</span><span class="meta">${esc(b.reason||"")}</span>
       <button class="btn" style="padding:4px 8px;font-size:.7rem;background:#16a34a;color:#fff" data-unban="${esc(b.email)}">Unban</button></div>`).join(""):'<p class="muted">No banned users.</p>';
     $("#bannedList").querySelectorAll("[data-unban]").forEach(b=>b.onclick=()=>unbanUser(b.dataset.unban));
+    // campus ambassadors
+    $("#ambTbl tbody").innerHTML=(d.ambassadors||[]).length?d.ambassadors.map(a=>`<tr>
+      <td>${a.rank}</td><td>${esc(a.name)}</td><td class="muted">${esc(a.college||"—")}</td>
+      <td style="font-family:monospace">${esc(a.code)}</td><td>${esc(a.tier)}</td><td><b>${a.count}</b></td></tr>`).join(""):'<tr><td colspan="6" class="muted">No ambassadors yet.</td></tr>';
     // threat log (auto-defense) with severity colours
     const sevColor={critical:["#7f1d1d","#fecaca"],high:["#9a3412","#fed7aa"],medium:["#854d0e","#fde68a"]};
     $("#threatList").innerHTML=(d.threats||[]).length?d.threats.map(t=>{const c=sevColor[t.severity]||["#374151","#e5e7eb"];
