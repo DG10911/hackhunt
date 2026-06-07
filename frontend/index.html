@@ -83,14 +83,32 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
 @keyframes shieldPulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 6px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
 @media(max-width:720px){.shield .shield-txt{display:none}.shield{padding:6px}}
 
-/* mobile nav drawer */
+/* mobile nav drawer — premium slide-in panel */
 .menu-toggle{display:none}
+.nav-backdrop{display:none}
 @media(max-width:880px){
-  .nav{position:fixed;top:64px;left:0;right:0;flex-direction:column;margin:0;border-radius:0;
-    border-left:none;border-right:none;padding:8px;transform:translateY(-150%);transition:transform .3s;z-index:55}
-  .nav.open{transform:translateY(0)}
-  .nav-btn{justify-content:flex-start;font-size:.95rem;padding:13px}
   .menu-toggle{display:grid}
+  .nav-backdrop{position:fixed;inset:0;background:rgba(5,5,12,.55);backdrop-filter:blur(4px);
+    z-index:54;opacity:0;pointer-events:none;transition:opacity .25s}
+  .nav-backdrop.open{opacity:1;pointer-events:auto}
+  .nav{position:fixed;top:0;right:0;bottom:0;left:auto;width:min(82vw,320px);
+    flex-direction:column;margin:0;border:none;border-left:1px solid var(--brd);border-radius:0;
+    background:var(--bg2);gap:5px;z-index:55;overflow-y:auto;
+    padding:calc(env(safe-area-inset-top) + 74px) 14px calc(env(safe-area-inset-bottom) + 24px);
+    transform:translateX(110%);transition:transform .32s cubic-bezier(.22,1,.36,1);
+    box-shadow:-24px 0 60px rgba(0,0,0,.55)}
+  .nav::before{content:"Menu";position:absolute;top:calc(env(safe-area-inset-top) + 34px);left:18px;
+    font-family:Sora,sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+  .nav.open{transform:translateX(0)}
+  .nav-btn{justify-content:flex-start;font-size:1rem;padding:15px 16px;border-radius:13px;width:100%;
+    color:var(--txt);transition:background .15s}
+  .nav-btn [data-i]{width:20px;height:20px;color:var(--accent-2)}
+  .nav-btn.active{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 22%,transparent),transparent);
+    color:#fff;box-shadow:inset 3px 0 0 var(--accent)}
+  /* hamburger -> X morph */
+  .menu-toggle{position:relative}
+  body.nav-open .menu-toggle [data-i]{opacity:0}
+  body.nav-open{overflow:hidden}
 }
 
 /* ---------- hero ---------- */
@@ -349,6 +367,7 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
     <button class="iconbtn menu-toggle" id="menuBtn" data-i="menu"></button>
   </div>
 </header>
+<div class="nav-backdrop" id="navBackdrop"></div>
 
 <section class="hero">
   <span class="kicker"><span data-i="sparkles"></span> India's hackathon & tech-event hub for students</span>
@@ -844,7 +863,7 @@ const TITLES={hackathons:"Hackathons & Challenges",community:"Conferences, Meetu
 function switchTab(tab){
   activeTab=tab;activeCat="All";activePlat="All";activeTheme="All";activeQuick="All";if($("#search"))$("#search").value="",q="";
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
-  $("#nav").classList.remove("open");
+  $("#nav").classList.remove("open");$("#navBackdrop")?.classList.remove("open");document.body.classList.remove("nav-open");
   const isList=["hackathons","community","saved","history"].includes(tab);
   const hero=document.querySelector(".hero");
   if(hero) hero.style.display = (tab==="hackathons") ? "" : "none";  // hero+stats only on main tab
@@ -951,7 +970,13 @@ let st;$("#search").oninput=e=>{clearTimeout(st);st=setTimeout(()=>{q=e.target.v
 $("#refreshBtn").onclick=()=>{commLoaded=false;COMMUNITY=[];load(true);};
 $("#themeBtn").onclick=()=>{const r=document.documentElement;const n=r.dataset.theme==="dark"?"light":"dark";r.dataset.theme=n;
   localStorage.setItem("hh_theme",n);$("#themeBtn").innerHTML=svg(n==="dark"?"moon":"sun");};
-$("#menuBtn").onclick=()=>$("#nav").classList.toggle("open");
+function setMenu(open){
+  $("#nav").classList.toggle("open",open);
+  $("#navBackdrop").classList.toggle("open",open);
+  document.body.classList.toggle("nav-open",open);
+}
+$("#menuBtn").onclick=()=>setMenu(!$("#nav").classList.contains("open"));
+$("#navBackdrop").onclick=()=>setMenu(false);
 $("#sortSel").onchange=e=>{sortBy=e.target.value;render();};
 $("#surpriseBtn").onclick=()=>{if(!FILTERED.length){toast("No events to pick from",'search');return;}
   const h=FILTERED[Math.floor(Math.random()*FILTERED.length)];openModal(h.id);};
