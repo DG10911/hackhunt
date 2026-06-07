@@ -86,35 +86,31 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
   width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.85rem;flex:none;display:grid;place-items:center}
 .search-clear:hover{color:var(--txt)}
 
-/* mobile nav drawer — premium slide-in panel */
+/* mobile menu — full-screen overlay (bulletproof, no transforms/cascade conflicts) */
 .menu-toggle{display:none}
-.nav-backdrop{display:none}
+#mobileMenu{display:none}
 @media(max-width:880px){
-  .menu-toggle{display:grid}
-  .nav-backdrop{position:fixed;inset:0;background:rgba(5,5,12,.55);backdrop-filter:blur(4px);
-    z-index:54;opacity:0;pointer-events:none;transition:opacity .25s}
-  .nav-backdrop.open{opacity:1;pointer-events:auto}
-  .nav{position:fixed;top:0;right:0;bottom:0;left:auto;width:min(82vw,320px);
-    flex-direction:column;margin:0;border:none;border-left:1px solid var(--brd);border-radius:0;
-    background:var(--bg2);gap:5px;z-index:55;overflow-y:auto;
-    padding:calc(env(safe-area-inset-top) + 74px) 14px calc(env(safe-area-inset-bottom) + 24px);
-    transform:translateX(110%);transition:transform .32s cubic-bezier(.22,1,.36,1);
-    box-shadow:-24px 0 60px rgba(0,0,0,.55)}
-  .nav::before{content:"Menu";position:absolute;top:calc(env(safe-area-inset-top) + 34px);left:18px;
-    font-family:Sora,sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
-  .nav.open{transform:translateX(0)}
-  .nav-btn{justify-content:flex-start;font-size:1rem;padding:15px 16px;border-radius:13px;width:100%;
-    color:var(--txt);transition:background .15s}
-  .nav-btn svg{width:20px;height:20px;color:var(--accent-2)}
-  .nav-btn.active{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 22%,transparent),transparent);
-    color:#fff;box-shadow:inset 3px 0 0 var(--accent)}
-  /* declutter the header so the menu button is always visible & tappable */
+  .nav{display:none!important}                 /* hide the desktop pill nav on mobile */
+  .menu-toggle{display:grid;flex:0 0 auto;width:44px;height:44px;z-index:61}
+  .menu-toggle svg{width:24px;height:24px}
   .shield{display:none}
   #refreshBtn,#themeBtn{display:none}
-  .menu-toggle{flex:0 0 auto;width:44px;height:44px;z-index:61}
-  .menu-toggle svg{width:24px;height:24px}
-  body.nav-open .menu-toggle{transform:rotate(90deg);transition:transform .25s}
-  body.nav-open{overflow:hidden}
+  #mobileMenu{position:fixed;inset:0;z-index:300;background:var(--bg);
+    flex-direction:column;gap:8px;overflow-y:auto;
+    padding:calc(env(safe-area-inset-top) + 16px) 18px calc(env(safe-area-inset-bottom) + 28px)}
+  #mobileMenu.open{display:flex}
+  body.menu-open{overflow:hidden}
+  .mm-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .mm-title{font-family:Sora,sans-serif;font-weight:800;font-size:1.1rem}
+  .mm-close{width:44px;height:44px;border-radius:12px;border:1px solid var(--brd);
+    background:var(--surface);color:var(--txt);font-size:1.1rem;cursor:pointer}
+  .mm-item{display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+    padding:17px 18px;border-radius:14px;border:1px solid var(--brd);background:var(--surface);
+    color:var(--txt);font-size:1.05rem;font-weight:600;font-family:inherit;cursor:pointer;text-decoration:none}
+  .mm-item svg{width:22px;height:22px;color:var(--accent-2);flex:none}
+  .mm-item.active{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 26%,transparent),var(--surface));
+    border-color:var(--accent);color:#fff}
+  .mm-item:active{transform:scale(.98)}
 }
 
 /* ---------- hero ---------- */
@@ -367,7 +363,19 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
     <button class="iconbtn menu-toggle" id="menuBtn" data-i="menu"></button>
   </div>
 </header>
-<div class="nav-backdrop" id="navBackdrop"></div>
+<div id="mobileMenu">
+  <div class="mm-head">
+    <span class="mm-title">Menu</span>
+    <button class="mm-close" id="mmClose" aria-label="Close menu">✕</button>
+  </div>
+  <button class="mm-item" data-mtab="hackathons"><span data-i="zap"></span>Hackathons</button>
+  <button class="mm-item" data-mtab="community"><span data-i="ticket"></span>Community</button>
+  <button class="mm-item" data-mtab="teams"><span data-i="users"></span>Team Finder</button>
+  <button class="mm-item" data-mtab="saved"><span data-i="heart"></span>Saved</button>
+  <button class="mm-item" data-mtab="history"><span data-i="clock"></span>Past</button>
+  <button class="mm-item" data-mtab="resources"><span data-i="book"></span>Resources</button>
+  <a class="mm-item" href="/ambassador.html"><span data-i="star"></span>Campus Ambassador</a>
+</div>
 
 <section class="hero">
   <span class="kicker"><span data-i="sparkles"></span> India's hackathon & tech-event hub for students</span>
@@ -864,7 +872,7 @@ const TITLES={hackathons:"Hackathons & Challenges",community:"Conferences, Meetu
 function switchTab(tab){
   activeTab=tab;activeCat="All";activePlat="All";activeTheme="All";activeQuick="All";if($("#search"))$("#search").value="",q="";
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
-  $("#nav").classList.remove("open");$("#navBackdrop")?.classList.remove("open");document.body.classList.remove("nav-open");
+  $("#mobileMenu")?.classList.remove("open");document.body.classList.remove("menu-open");
   const isList=["hackathons","community","saved","history"].includes(tab);
   const hero=document.querySelector(".hero");
   if(hero) hero.style.display = (tab==="hackathons") ? "" : "none";  // hero+stats only on main tab
@@ -975,12 +983,13 @@ $("#refreshBtn").onclick=()=>{commLoaded=false;COMMUNITY=[];load(true);};
 $("#themeBtn").onclick=()=>{const r=document.documentElement;const n=r.dataset.theme==="dark"?"light":"dark";r.dataset.theme=n;
   localStorage.setItem("hh_theme",n);$("#themeBtn").innerHTML=svg(n==="dark"?"moon":"sun");};
 function setMenu(open){
-  $("#nav").classList.toggle("open",open);
-  $("#navBackdrop").classList.toggle("open",open);
-  document.body.classList.toggle("nav-open",open);
+  $("#mobileMenu").classList.toggle("open",open);
+  document.body.classList.toggle("menu-open",open);
+  if(open){document.querySelectorAll(".mm-item").forEach(b=>b.classList.toggle("active",b.dataset.mtab===activeTab));}
 }
-$("#menuBtn").onclick=()=>setMenu(!$("#nav").classList.contains("open"));
-$("#navBackdrop").onclick=()=>setMenu(false);
+$("#menuBtn").onclick=()=>setMenu(!$("#mobileMenu").classList.contains("open"));
+$("#mmClose").onclick=()=>setMenu(false);
+document.querySelectorAll(".mm-item[data-mtab]").forEach(b=>b.onclick=()=>{switchTab(b.dataset.mtab);setMenu(false);});
 $("#sortSel").onchange=e=>{sortBy=e.target.value;render();};
 $("#surpriseBtn").onclick=()=>{if(!FILTERED.length){toast("No events to pick from",'search');return;}
   const h=FILTERED[Math.floor(Math.random()*FILTERED.length)];openModal(h.id);};
