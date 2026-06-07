@@ -256,11 +256,17 @@ function buildCertSVG(cert){
   const date=fmtDate(cert.issued);
   // shrink very long names to fit
   const nameSize = name.length>26 ? 44 : (name.length>18 ? 54 : 64);
-  const NAVY="#0f1c3f", GOLD="#bf9b30", GOLD2="#e7c873", INK="#1a2238", MUT="#5b6478", IVORY="#fcfbf7";
+  // each tier gets its own prestige metal: Star=silver, Lead=gold, National=platinum/royal
+  const ACC={
+    "Star Ambassador":   {a1:"#dfe5ee",a2:"#9aa3b2",a3:"#6b7484"},
+    "Campus Lead":       {a1:"#e7c873",a2:"#bf9b30",a3:"#9c7a1e"},
+    "National Ambassador":{a1:"#d9c9ff",a2:"#7c5cff",a3:"#4b35b3"}
+  }[cert.tier] || {a1:"#e7c873",a2:"#bf9b30",a3:"#9c7a1e"};
+  const NAVY="#0f1c3f", GOLD=ACC.a2, GOLD2=ACC.a1, GOLDD=ACC.a3, INK="#1a2238", MUT="#5b6478", IVORY="#fcfbf7";
   return `<svg id="certCanvasSrc" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 707" width="100%" font-family="Georgia, 'Times New Roman', serif">
   <defs>
     <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="${GOLD2}"/><stop offset=".5" stop-color="${GOLD}"/><stop offset="1" stop-color="#9c7a1e"/></linearGradient>
+      <stop offset="0" stop-color="${GOLD2}"/><stop offset=".5" stop-color="${GOLD}"/><stop offset="1" stop-color="${GOLDD}"/></linearGradient>
     <radialGradient id="seal" cx="50%" cy="45%" r="60%">
       <stop offset="0" stop-color="${GOLD2}"/><stop offset="1" stop-color="${GOLD}"/></radialGradient>
     <linearGradient id="logoG" x1="0" y1="0" x2="1" y2="1">
@@ -296,7 +302,7 @@ function buildCertSVG(cert){
   <!-- seal -->
   <g transform="translate(210,592)">
     <path d="M-14 22 L-8 54 L0 46 L8 54 L14 22 Z" fill="${GOLD}"/>
-    <circle r="40" fill="url(#seal)" stroke="#9c7a1e" stroke-width="1.5"/>
+    <circle r="40" fill="url(#seal)" stroke="${GOLDD}" stroke-width="1.5"/>
     <circle r="32" fill="none" stroke="#fff" stroke-width="1" opacity=".7"/>
     <text y="-8" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="9" font-weight="800" fill="${NAVY}">HACKHUNT</text>
     <text y="4" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="7" fill="${NAVY}">CAMPUS</text>

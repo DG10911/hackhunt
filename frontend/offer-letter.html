@@ -44,7 +44,7 @@ input,select{width:100%;background:#12121f;border:1px solid #262640;color:#eef0f
 <div class="bar">
   <h1>🎓 Ambassador Offer Letter Generator</h1>
   <span class="spacer"></span>
-  <button class="btn green" onclick="window.print()">⬇ Download / Print PDF</button>
+  <button class="btn green" id="printBtn">⬇ Download / Print PDF</button>
   <button class="btn ghost" id="dlLogo">Download logo (SVG)</button>
   <a class="btn ghost" href="/ambassador.html" style="text-decoration:none">Dashboard</a>
 </div>
@@ -59,9 +59,12 @@ input,select{width:100%;background:#12121f;border:1px solid #262640;color:#eef0f
       <option>Campus Lead</option><option>National Ambassador</option>
     </select>
     <label>Date</label><input id="fDate" type="date">
-    <label>Reference ID</label><input id="fRef" value="">
+    <label>Reference ID</label>
+    <div style="display:flex;gap:8px"><input id="fRef" value="" readonly>
+      <button class="btn ghost" id="newRef" title="New reference number">↻</button></div>
     <p style="font-size:.75rem;color:#9aa0bb;margin-top:16px">Fill the fields → the letter updates live.
-    Click <b>Download / Print PDF</b> and choose "Save as PDF". Send it to your ambassador. 🚀</p>
+    A <b>new reference number</b> is generated automatically each time you download.
+    Click <b>Download / Print PDF</b> and choose "Save as PDF". 🚀</p>
   </div>
 
   <div class="stage">
@@ -70,7 +73,7 @@ input,select{width:100%;background:#12121f;border:1px solid #262640;color:#eef0f
         <span class="logo" id="logoSlot"></span>
         <div class="org"><div class="nm">Hack<span class="g">Hunt</span></div>
           <div class="tag">All Hackathons of India, One Place</div></div>
-        <div class="meta">hackhunt.xyz<br>hello@hackhunt.xyz</div>
+        <div class="meta">hackhunt.xyz</div>
       </div>
 
       <h2>LETTER OF APPOINTMENT</h2>
@@ -128,8 +131,10 @@ document.getElementById("logoSlot").innerHTML=LOGO;
 document.getElementById("sealSlot").innerHTML=SEAL;
 
 const $=s=>document.getElementById(s);
-function refid(){return "HH-AMB-"+Math.random().toString(36).slice(2,7).toUpperCase();}
-$("fRef").value=refid();
+function refid(){const d=new Date();const y=d.getFullYear();
+  return "HH-AMB-"+y+"-"+Math.random().toString(36).slice(2,7).toUpperCase();}
+function newRef(){$("fRef").value=refid();upd();}
+newRef();
 $("fDate").valueAsDate=new Date();
 function upd(){
   $("oName").textContent=$("fName").value||"—";
@@ -142,6 +147,10 @@ function upd(){
 }
 ["fName","fCollege","fTier","fDate","fRef"].forEach(id=>$(id).addEventListener("input",upd));
 upd();
+
+$("newRef").onclick=newRef;
+// every download/print gets a brand-new reference number
+$("printBtn").onclick=()=>{newRef();setTimeout(()=>window.print(),60);};
 
 // download logo as SVG file
 $("dlLogo").onclick=()=>{const blob=new Blob([LOGO.replace('width="56" height="56"','width="240" height="240"')],{type:"image/svg+xml"});
