@@ -396,16 +396,12 @@ def auth():
     try:
         b = request.get_json(force=True) or {}
         email = (b.get("email") or "").strip().lower()
-        if db.is_email_banned(email):
+        if email not in OWNER_EMAILS and db.is_email_banned(email):
             return jsonify({"ok": False, "error": "account suspended"}), 403
-        # auto-scan: if the profile carries an attack payload, ban + block IP
-        if db.looks_malicious(b.get("name"), b.get("college"), b.get("year"),
-                              b.get("github"), b.get("linkedin"), b.get("skills"),
-                              b.get("achievements")):
-            db.block_ip(get_ip(), "auto: malicious profile payload")
-            if email:
-                db.ban_user(email, "auto: injection attempt")
-            return jsonify({"ok": False, "error": "blocked"}), 403
+        # Detection is handled by the request gate (graduated: warn first, ban only
+        # unambiguous attacks or persistent offenders). All fields are sanitized by
+        # db.clean() and escaped on render, so stray symbols a real student types
+        # are neutralized without banning them.
         ref = (b.get("ref") or "").strip().upper()
         was_new = bool(ref) and db.get_user(email) is None
         u = db.upsert_user(b)
@@ -458,10 +454,7 @@ def ambassador_register():
             return jsonify({"ok": False, "error": "Valid email required"}), 200
         if db.is_email_banned(email):
             return jsonify({"ok": False, "error": "account suspended"}), 403
-        if db.looks_malicious(b.get("name"), b.get("college")):
-            db.auto_defend(ip=get_ip(), email=email, kind="injection",
-                           detail="ambassador form", path="/api/ambassador/register")
-            return jsonify({"ok": False, "error": "blocked"}), 403
+        # detection handled by the gate (graduated); fields are sanitized on store
         amb = db.create_ambassador(b.get("name"), email, b.get("college"))
         return jsonify({"ok": True, "ambassador": amb})
     except Exception as e:
@@ -522,12 +515,8 @@ def teams():
             b = request.get_json(force=True) or {}
             if db.is_email_banned((b.get("email") or "").lower()):
                 return jsonify({"ok": False, "error": "account suspended"}), 403
-            if db.looks_malicious(b.get("event"), b.get("role"), b.get("looking_for"),
-                                  b.get("message"), b.get("contact"), b.get("skills")):
-                db.block_ip(get_ip(), "auto: malicious team post")
-                if b.get("email"):
-                    db.ban_user((b.get("email") or "").lower(), "auto: injection attempt")
-                return jsonify({"ok": False, "error": "blocked"}), 403
+            # detection handled by the gate (graduated); team-post fields are
+            # sanitized on store and escaped on render
             if not (b.get("event") and b.get("contact")):
                 return jsonify({"ok": False, "error": "event and contact required"}), 200
             db.create_team(b)
@@ -813,6 +802,7 @@ _SAFE_KEYS = {
     "picture", "image", "img", "avatar", "photo", "thumbnail",
     "email", "url", "ticket_url", "link", "href",
     "github", "linkedin", "otpauth", "sid", "code", "token", "pass",
+    "event", "event_json", "detail", "path", "kind",  # app/catalog data, not user input
 }
 
 
@@ -864,6 +854,16 @@ def _current_email():
 CANONICAL_HOST = os.environ.get("CANONICAL_HOST", "").strip().lower()
 # Your own IPs — never blocked or scanned. Set OWNER_IPS="1.2.3.4,5.6.7.8" in env.
 OWNER_IPS = {x.strip() for x in os.environ.get("OWNER_IPS", "").split(",") if x.strip()}
+# Your own accounts — never auto-banned. Set OWNER_EMAILS="you@gmail.com" in env.
+OWNER_EMAILS = {x.strip().lower() for x in os.environ.get("OWNER_EMAILS", "").split(",") if x.strip()}
+# Endpoints that carry OUR catalog/telemetry data (echoed back by the client),
+# not fresh user free-text — skip injection scanning here to avoid false bans.
+SCAN_EXEMPT_PATHS = {"/api/save", "/api/track", "/api/me", "/api/history"}
+# Unambiguous attacks — no legitimate user ever types these → instant ban.
+# Softer kinds (xss/template/nosql) in a normal form are usually a curious user
+# typing quotes/brackets; their data is sanitized + escaped anyway, so we warn
+# and only ban a persistent attacker (many attempts).
+CRITICAL_KINDS = {"sqli", "cmdi", "path_traversal", "ssrf"}
 
 
 @app.before_request
@@ -897,7 +897,7 @@ def _gate():
     if not owner_path:
         try:
             em = _current_email()
-            if em and db.is_email_banned(em):
+            if em and em not in OWNER_EMAILS and db.is_email_banned(em):
                 if ip and not db.is_ip_blocked(ip):
                     db.block_ip(ip, "auto: banned account on new IP")
                     db.log_threat(ip=ip, email=em, kind="banned_evasion",
@@ -930,16 +930,32 @@ def _gate():
                        detail="probe: " + p[:120], path=p, severity="high", ua=ua)
         _geo_async(ip)
         return jsonify({"blocked": True, "message": "Access denied."}), 403
-    # 4) AUTO-SCAN every request body/query for injection -> instant auto-defend
-    if not owner_path and p != "/api/health":
+    # 4) AUTO-SCAN real injection vectors only (signup/profile, team posts, etc.)
+    #    Skips our own data-echo endpoints and your owner accounts -> no false bans.
+    if (not owner_path and p != "/api/health" and p not in SCAN_EXEMPT_PATHS
+            and _current_email() not in OWNER_EMAILS):
         try:
             kind, sev, hit = db.scan_pairs(_request_payloads())
             if kind:
-                db.auto_defend(ip=ip, email=_current_email(), kind=kind,
-                               detail=hit, path=p, severity=sev or "high", ua=ua)
-                _geo_async(ip)
-                return jsonify({"blocked": True,
-                                "message": "Malicious request blocked."}), 403
+                if kind in CRITICAL_KINDS:
+                    # SQLi / command / path-traversal / SSRF — ban on sight
+                    db.auto_defend(ip=ip, email=_current_email(), kind=kind,
+                                   detail=hit, path=p, severity="critical", ua=ua)
+                    _geo_async(ip)
+                    return jsonify({"blocked": True,
+                                    "message": "Malicious request blocked."}), 403
+                # softer (xss/template/nosql): warn first, ban only a persistent attacker
+                strikes = db.record_strike("inj:" + ip, 1)
+                if strikes >= 4:
+                    db.auto_defend(ip=ip, email=_current_email(), kind=kind,
+                                   detail=hit, path=p, severity="high", ua=ua)
+                    _geo_async(ip)
+                    return jsonify({"blocked": True,
+                                    "message": "Repeated unsafe input — access denied."}), 403
+                db.log_threat(ip=ip, email=_current_email(), kind=kind, detail=hit,
+                              path=p, action="warned (sanitized)", severity=sev or "medium", ua=ua)
+                return jsonify({"error": "Your input contains characters that aren't allowed "
+                                "(like < > \" ' ; ). Please remove them and try again."}), 400
         except Exception:
             pass
     # 5) rate-limit write APIs — a soft 429 only (NO permanent ban). On shared
