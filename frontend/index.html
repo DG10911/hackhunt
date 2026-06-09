@@ -1258,7 +1258,13 @@ $("#streakPill")&&($("#streakPill").onclick=()=>switchTab("profile"));
 renderStreak();
 
 // ===================== PWA: install + offline =====================
-if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+  // when a new service worker takes over, reload once so the latest page shows
+  let _swRefreshing=false;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    if(_swRefreshing)return;_swRefreshing=true;location.reload();});
+}
 let deferredPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;const b=$("#installBtn");if(b)b.style.display="inline-flex";});
 const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
