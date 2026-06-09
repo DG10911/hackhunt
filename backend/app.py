@@ -692,6 +692,16 @@ def owner_overview():
     })
 
 
+@app.route("/api/live-count")
+def live_count():
+    """Public: how many students are on the site right now + total users.
+    Powers the social-proof badge. No personal data exposed."""
+    try:
+        return jsonify({"online": len(db.live_users()), "total": db.stats().get("users", 0)})
+    except Exception:
+        return jsonify({"online": 0, "total": 0})
+
+
 @app.route("/api/security")
 def security_status():
     """Public, lightweight: confirms the protection layer is active.

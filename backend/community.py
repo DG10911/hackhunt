@@ -4,6 +4,13 @@ shape as hackathons plus: 'type' (Conference|Meetup|Summit|Workshop|Webinar),
 'price', 'ticket_url', 'city'."""
 
 COMMUNITY = [
+    {"id": "c-cypher", "title": "Cypher 2026 — India's Biggest AI Conference", "organizer": "Analytics India Magazine",
+     "type": "Conference", "category": "Conference", "platform": "Community",
+     "city": "Bengaluru", "mode": "Offline", "location": "KTPO, Whitefield, Bengaluru",
+     "starts": "2026-10-07", "ends": "2026-10-09", "deadline": "2026-10-01",
+     "price": "From ₹7,000 (student passes available)", "ticket_url": "https://cypher.analyticsindiamag.com/tickets",
+     "url": "https://cypher.analyticsindiamag.com/", "tags": ["AI", "ML", "Data"],
+     "themes": ["AI/ML"], "mnc": True, "dates_confirmed": True},
     {"id": "c-gophercon", "title": "GopherCon India 2026", "organizer": "Emerging Technology Trust",
      "type": "Conference", "category": "Conference", "platform": "Community",
      "city": "Hyderabad", "mode": "Offline", "location": "Novotel Hyderabad Airport",
