@@ -28,31 +28,47 @@ input:focus{border-color:var(--accent)}
 .hide{display:none!important}
 /* dashboard */
 header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--brd);position:sticky;top:0;background:rgba(7,7,15,.8);backdrop-filter:blur(12px);z-index:5}
-header h1{font-size:1.2rem}.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);animation:pulse 1.5s infinite}
+header h1{font-size:1.15rem;display:flex;align-items:center;gap:8px}
+.hlogo{display:grid;place-items:center}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);animation:pulse 1.5s infinite}
 @keyframes pulse{50%{opacity:.4}}
 .spacer{margin-left:auto}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}
 @media(max-width:700px){.kpis{grid-template-columns:repeat(2,1fr)}}
-.kpi{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:18px}
-.kpi b{font-family:Sora;font-size:1.9rem;display:block}.kpi span{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em}
-.kpi.live b{color:var(--ok)}
+.kpi{position:relative;background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  border:1px solid var(--brd);border-radius:18px;padding:18px 18px 16px;overflow:hidden;transition:.2s}
+.kpi:hover{transform:translateY(-3px);border-color:rgba(124,92,255,.45)}
+.kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.kpi b{font-family:Sora;font-size:2rem;display:block;line-height:1;background:linear-gradient(90deg,#fff,#c9c4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.kpi span{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-top:7px;display:block}
+.kpi.live::before{background:linear-gradient(90deg,var(--ok),var(--accent2))}
+.kpi.live b{background:linear-gradient(90deg,#7CFFB2,#34d36b);-webkit-background-clip:text;background-clip:text;color:transparent}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:900px){.grid2{grid-template-columns:1fr}}
-.panel{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:18px;margin-bottom:16px}
-.panel h2{font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.feed{max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:8px}
-.row{display:flex;gap:10px;align-items:center;font-size:.85rem;padding:8px;border-radius:10px;background:rgba(255,255,255,.03)}
+.panel{background:linear-gradient(160deg,rgba(255,255,255,.045),rgba(255,255,255,.015));border:1px solid var(--brd);
+  border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.panel h2{font-size:1.05rem;margin-bottom:14px;display:flex;align-items:center;gap:9px;padding-left:11px;position:relative}
+.panel h2::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:3px;border-radius:3px;background:linear-gradient(180deg,var(--accent),var(--accent2))}
+.danger-zone h2::before{background:var(--danger)}
+.feed{max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:7px}
+.feed::-webkit-scrollbar{width:7px}.feed::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:9px}
+.row{display:flex;gap:10px;align-items:center;font-size:.85rem;padding:10px 11px;border-radius:11px;
+  background:rgba(255,255,255,.03);border:1px solid transparent;transition:.15s}
+.row:hover{background:rgba(255,255,255,.06);border-color:var(--brd)}
 .row .who{font-weight:600}.row .meta{color:var(--muted);margin-left:auto;font-size:.75rem}
-.pill{font-size:.7rem;padding:3px 8px;border-radius:6px;background:rgba(124,92,255,.2);color:#b6a4ff;font-weight:600}
+.pill{font-size:.68rem;padding:3px 9px;border-radius:999px;background:rgba(124,92,255,.2);color:#b6a4ff;font-weight:700;white-space:nowrap}
 .pill.click{background:rgba(25,227,199,.18);color:var(--accent2)}
 .pill.view{background:rgba(255,177,59,.18);color:var(--warn)}
 .pill.presence{background:rgba(52,211,107,.18);color:var(--ok)}
 table{width:100%;border-collapse:collapse;font-size:.85rem}
-th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--brd)}
-th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
+th,td{text-align:left;padding:11px 9px;border-bottom:1px solid var(--brd)}
+th{color:var(--muted);font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+tbody tr{transition:.12s}tbody tr:hover{background:rgba(255,255,255,.035)}
 .danger-zone{border-color:rgba(255,77,109,.4)}
 .danger-zone h2{color:var(--danger)}
 .muted{color:var(--muted);font-size:.85rem}
 .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input,select{font-family:inherit}
+@media(max-width:560px){.wrap{padding:14px}.kpi b{font-size:1.55rem}input,select{font-size:16px}}
 </style></head>
 <body>
 
@@ -73,7 +89,9 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
 <!-- DASHBOARD -->
 <div id="dashView" class="hide">
   <header>
-    <span class="dot"></span><h1>HackHunt Owner Console</h1>
+    <span class="hlogo"><svg viewBox="0 0 64 64" width="26" height="26"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#19e3c7"/></linearGradient></defs><path d="M32 3 56 12v18c0 16-11 27-24 31C19 57 8 46 8 30V12z" fill="url(#lg)"/><path d="M34 18 24 34h7l-1 12 11-16h-7z" fill="#fff"/></svg></span>
+    <h1>HackHunt <span style="color:var(--muted);font-weight:600;font-size:.9rem">Owner Console</span></h1>
+    <span class="dot" style="margin-left:4px"></span>
     <div class="spacer"></div>
     <span class="muted" id="updated"></span>
     <button class="btn ghost" id="logoutBtn">Sign out</button>
