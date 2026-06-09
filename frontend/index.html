@@ -274,9 +274,20 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
   background:var(--surface-2);cursor:pointer;font-size:.82rem;font-weight:600;color:var(--muted);transition:.16s;margin:5px 6px 0 0}
 .interest:hover{color:var(--txt)}
 .interest.on{background:linear-gradient(90deg,var(--accent),var(--accent-3));color:#fff;border-color:transparent}
-.res-grid{max-width:var(--maxw);margin:20px auto 70px;padding:0 clamp(14px,4vw,24px);display:none;
-  grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
-.res-grid.show{display:grid}
+.res-wrap{max-width:var(--maxw);margin:14px auto 70px;padding:0 clamp(14px,4vw,24px);display:none}
+.res-wrap.show{display:block}
+.res-h{font-family:Sora,sans-serif;font-size:1.15rem;margin:18px 0 12px;display:flex;align-items:center;gap:8px}
+.res-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+/* live auto-scrolling course strip */
+.cmar{overflow:hidden;position:relative;margin:4px -4px 6px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+.cmar-track{display:flex;gap:14px;width:max-content;animation:marq 36s linear infinite}
+.cmar:hover .cmar-track{animation-play-state:paused}
+@keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.cchip{flex:none;display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--brd);
+  border-radius:14px;padding:12px 16px;text-decoration:none;color:var(--txt);min-width:238px;transition:.18s}
+.cchip:hover{border-color:var(--accent);transform:translateY(-3px)}
+.cchip .ci{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:#fff;flex:none}
+.cchip b{font-size:.9rem;display:block}.cchip .cs{color:var(--muted);font-size:.72rem}
 .res{background:var(--surface);border:1px solid var(--brd);border-radius:var(--radius);padding:22px;text-decoration:none;
   color:var(--txt);transition:.2s;display:flex;flex-direction:column;gap:8px}
 .res:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:var(--shadow)}
@@ -461,7 +472,7 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
 </div>
 
 <!-- resources -->
-<div class="res-grid" id="resourcesView"></div>
+<div class="res-wrap" id="resourcesView"></div>
 
 <!-- detail modal -->
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
@@ -998,9 +1009,43 @@ const RESOURCES=[
   ["tag","#b15cff","UI/UX for winning demos","Design clean interfaces fast with Figma.","https://www.figma.com/community"],
   ["mic","#ff8a3b","Pitch like a pro","Tell a 3-minute story judges remember.","https://www.ycombinator.com/library"],
 ];
+// curated learning courses (verified real links) — shown in the live moving strip
+const COURSES=[
+  ["cpu","#19e3c7","DSA by Apna College","Free Hinglish DSA course","https://www.youtube.com/@ApnaCollegeOfficial"],
+  ["cpu","#7c5cff","Striver A2Z DSA Sheet","Full DSA roadmap + practice","https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2/"],
+  ["sparkles","#ff5c92","Claude & AI Mastery","Official Anthropic courses","https://github.com/anthropics/courses"],
+  ["mic","#ff8a3b","CapCut Full Editing Course","Beginner → Pro (YouTube)","https://www.youtube.com/playlist?list=PLFwlslCFx_cMy6WXX_A1poEHEkwkc-5Ma"],
+  ["mic","#b15cff","Premiere Pro Tutorials","Adobe official · free","https://helpx.adobe.com/in/premiere-pro/tutorials.html"],
+  ["book","#34d36b","CapCut Masterclass","Free certificate (Alison)","https://alison.com/course/capcut-video-editing-masterclass"],
+  ["sparkles","#5c8cff","Kaggle Learn","Free AI/ML hands-on","https://www.kaggle.com/learn"],
+  ["star","#ffb13b","GitHub Student Pack","Free dev tools & credits","https://education.github.com/pack"],
+  ["cpu","#00b4d8","SQL Full Course","Free SQL tutorial (W3Schools)","https://www.w3schools.com/sql/"],
+  ["book","#a31515","CS50 by Harvard","Best free intro to CS","https://cs50.harvard.edu/x/"],
+  ["sparkles","#3776ab","Learn Python","Hands-on for beginners","https://www.learnpython.org/"],
+  ["star","#0a9d58","freeCodeCamp","Free full-stack certifications","https://www.freecodecamp.org/learn"],
+  ["cloud","#f05032","Git & GitHub Basics","Version control for projects","https://www.w3schools.com/git/"],
+];
+// extra first-year essentials shown in the resources grid
+const FIRST_YEAR=[
+  ["cpu","#00b4d8","Master SQL & Databases","Queries, joins & schemas — free interactive.","https://www.w3schools.com/sql/"],
+  ["book","#a31515","CS50: Intro to Computer Science","Harvard's legendary free course for beginners.","https://cs50.harvard.edu/x/"],
+  ["sparkles","#3776ab","Python from scratch","Perfect first language for 1st-years.","https://www.learnpython.org/"],
+  ["star","#0a9d58","freeCodeCamp full-stack","Free certs: web dev, Python, data, more.","https://www.freecodecamp.org/learn"],
+  ["cloud","#f05032","Git & GitHub for beginners","Version control every student must know.","https://www.w3schools.com/git/"],
+  ["mic","#ff8a3b","Learn video editing (CapCut)","Edit reels for clubs, fests & content.","https://www.youtube.com/playlist?list=PLFwlslCFx_cMy6WXX_A1poEHEkwkc-5Ma"],
+];
 function renderResources(){
-  $("#resourcesView").innerHTML=RESOURCES.map(([ic,c,t,p,u])=>
-    `<a class="res" href="${u}" target="_blank" rel="noopener"><div class="r-ic" style="background:${c}">${svg(ic)}</div><h3>${t}</h3><p>${p}</p><span class="go">Open ${svg("external")}</span></a>`).join("");
+  const chip=([ic,c,t,p,u])=>`<a class="cchip" href="${u}" target="_blank" rel="noopener"><span class="ci" style="background:${c}">${svg(ic)}</span><span><b>${t}</b><span class="cs">${p}</span></span></a>`;
+  const track=COURSES.concat(COURSES).map(chip).join("");
+  const card=([ic,c,t,p,u])=>
+    `<a class="res" href="${u}" target="_blank" rel="noopener"><div class="r-ic" style="background:${c}">${svg(ic)}</div><h3>${t}</h3><p>${p}</p><span class="go">Open ${svg("external")}</span></a>`;
+  $("#resourcesView").innerHTML=
+    `<h2 class="res-h">${svg("sparkles")} Trending courses for students</h2>
+     <div class="cmar"><div class="cmar-track">${track}</div></div>
+     <h2 class="res-h">${svg("star")} First-year essentials</h2>
+     <div class="res-grid">${FIRST_YEAR.map(card).join("")}</div>
+     <h2 class="res-h">${svg("book")} More resources</h2>
+     <div class="res-grid">${RESOURCES.map(card).join("")}</div>`;
 }
 
 // ===================== TOP / THEME / SEARCH / NAV =====================
