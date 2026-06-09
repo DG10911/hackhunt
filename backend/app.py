@@ -1055,9 +1055,94 @@ def health():
                     "maintenance": db.get_setting("maintenance", "0") == "1"})
 
 
+import html as _html
+
+_INDEX_HTML = None
+
+
+def _load_index():
+    global _INDEX_HTML
+    try:
+        with open(os.path.join(FRONTEND_DIR, "index.html"), encoding="utf-8") as f:
+            _INDEX_HTML = f.read()
+    except Exception:
+        _INDEX_HTML = None
+    return _INDEX_HTML
+
+
+def _seo_block():
+    """Server-rendered, crawlable event list + schema.org Event JSON-LD so Google,
+    Bing and AI search engines can read the events even though the app is JS-rendered."""
+    try:
+        evs = (_CACHE.get("data") or [])[:40]
+    except Exception:
+        evs = []
+    if not evs:
+        return ""
+    items, lis = [], []
+    for i, e in enumerate(evs):
+        title = _html.escape(str(e.get("title") or "Event"))
+        url = e.get("url") or "https://hackhunt.xyz/"
+        org = _html.escape(str(e.get("organizer") or ""))
+        start = e.get("starts") or e.get("deadline") or ""
+        place = _html.escape(str(e.get("location") or e.get("city") or e.get("mode") or "India"))
+        lis.append('<li><a href="%s">%s</a> — %s%s</li>' % (
+            _html.escape(str(url)), title, org, (" · " + _html.escape(str(start)) if start else "")))
+        ld = {"@type": "Event", "position": i + 1, "name": e.get("title"),
+              "url": url, "startDate": start,
+              "eventAttendanceMode": ("https://schema.org/OnlineEventAttendanceMode"
+                                       if (e.get("mode", "").lower() == "online")
+                                       else "https://schema.org/MixedEventAttendanceMode"),
+              "location": {"@type": "Place", "name": e.get("location") or e.get("city") or "India",
+                           "address": "India"},
+              "organizer": {"@type": "Organization", "name": e.get("organizer") or "Organizer"}}
+        if e.get("ends"):
+            ld["endDate"] = e.get("ends")
+        items.append({"@type": "ListItem", "position": i + 1, "item": ld})
+    ld_json = json.dumps({"@context": "https://schema.org", "@type": "ItemList",
+                          "name": "Hackathons & tech events in India", "itemListElement": items},
+                         ensure_ascii=False)
+    crawl = ('<section aria-hidden="false" style="position:absolute;width:1px;height:1px;'
+             'overflow:hidden;clip:rect(0 0 0 0)">'
+             '<h1>Hackathons, hiring challenges &amp; tech conferences in India</h1>'
+             '<p>Browse %d live hackathons, ideathons, hiring challenges and tech conferences '
+             'across India with deadlines and direct apply links on HackHunt.</p><ul>%s</ul></section>'
+             % (len(evs), "".join(lis)))
+    return crawl + '<script type="application/ld+json">' + ld_json + '</script>'
+
+
 @app.route("/")
 def index():
-    return send_from_directory(app.static_folder, "index.html")
+    base = _INDEX_HTML or _load_index()
+    if not base:
+        return send_from_directory(app.static_folder, "index.html")
+    try:
+        html_out = base.replace("<!--SEO_INJECT-->", _seo_block(), 1)
+    except Exception:
+        html_out = base
+    return app.response_class(html_out, mimetype="text/html")
+
+
+@app.route("/robots.txt")
+def robots():
+    body = ("User-agent: *\nAllow: /\n"
+            "Disallow: /owner.html\nDisallow: /api/owner\n"
+            "Sitemap: https://hackhunt.xyz/sitemap.xml\n")
+    return app.response_class(body, mimetype="text/plain")
+
+
+@app.route("/sitemap.xml")
+def sitemap():
+    pages = ["/", "/ambassador.html", "/terms.html", "/privacy.html", "/offer-letter.html"]
+    today = time.strftime("%Y-%m-%d")
+    urls = "".join(
+        '<url><loc>https://hackhunt.xyz%s</loc><lastmod>%s</lastmod>'
+        '<changefreq>%s</changefreq><priority>%s</priority></url>'
+        % (p, today, "daily" if p == "/" else "weekly", "1.0" if p == "/" else "0.6")
+        for p in pages)
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>'
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + urls + '</urlset>')
+    return app.response_class(xml, mimetype="application/xml")
 
 
 AUTO_REFRESH_SECS = 10 * 60  # re-scrape every 10 min so new events appear live
@@ -1090,6 +1175,7 @@ def start_background():
 
 
 db.init()
+_load_index()  # cache index.html for fast SEO injection on "/"
 # Emergency recovery: set CLEAR_BLOCKS=1 in env + redeploy to lift every IP block
 # (e.g. if you got caught by a shared/CGNAT block). Remove the var afterwards.
 if os.environ.get("CLEAR_BLOCKS", "").strip() in ("1", "true", "yes"):
