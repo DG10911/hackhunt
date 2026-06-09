@@ -82,6 +82,8 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
 .shield.off svg{color:#9ca3af}
 @keyframes shieldPulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 6px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
 @media(max-width:720px){.shield .shield-txt{display:none}.shield{padding:6px}}
+.sample-flag.featured{background:linear-gradient(90deg,#f5b301,#ff8a3d);color:#241400}
+.card.is-featured{border-color:rgba(245,179,1,.55);box-shadow:0 0 0 1px rgba(245,179,1,.35),0 14px 36px rgba(245,179,1,.12)}
 .search-clear{background:var(--surface-2);border:1px solid var(--brd);color:var(--muted);
   width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.85rem;flex:none;display:grid;place-items:center}
 .search-clear:hover{color:var(--txt)}
@@ -664,8 +666,9 @@ function card(h,i){
   const money=h.type?(h.price?`<div class="money">${svg("ticket")}${h.price}</div>`:'')
                     :(h.prize?`<div class="money">${svg("trophy")}${h.prize}</div>`:'');
   const badge=h.type?`<span class="pill">${h.type}</span>`:`<span class="badge" style="background:${col}">${svg(CAT_ICON[h.category]||"zap")}${h.category}</span>`;
-  const flag=h.verified?`<span class="sample-flag verified">${svg("verified")}Verified</span>`:(h.sample?'<span class="sample-flag">Curated</span>':'');
-  return `<div class="card" style="animation-delay:${i*35}ms" data-id="${h.id}">
+  const flag=h.featured?'<span class="sample-flag featured">★ Featured</span>'
+            :(h.verified?`<span class="sample-flag verified">${svg("verified")}Verified</span>`:(h.sample?'<span class="sample-flag">Curated</span>':''));
+  return `<div class="card ${h.featured?'is-featured':''}" style="animation-delay:${i*35}ms" data-id="${h.id}">
     ${flag}
     <button class="bookmark ${saved?'on':''}" data-bm="${h.id}" title="Save">${svg("heart")}</button>
     ${banner(h)}

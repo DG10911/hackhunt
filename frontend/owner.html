@@ -128,27 +128,32 @@ th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase}
     </div>
 
     <div class="panel">
-      <h2>🎟️ Community events <span class="muted" style="font-size:.8rem">(add / edit conferences & meetups — appears live on the site)</span></h2>
+      <h2>➕ Add events <span class="muted" style="font-size:.8rem">(hackathons & community — appears live on the site)</span></h2>
       <div class="controls" style="flex-wrap:wrap;gap:8px">
-        <input id="ce_title" placeholder="Event title *" style="min-width:220px">
-        <input id="ce_organizer" placeholder="Organizer" style="min-width:160px">
-        <select id="ce_type" style="min-width:130px">
-          <option>Conference</option><option>Meetup</option><option>Summit</option>
-          <option>Workshop</option><option>Webinar</option>
+        <select id="ce_kind" style="min-width:130px">
+          <option value="hackathon">🏆 Hackathon</option>
+          <option value="community">🎟️ Community/Conf</option>
         </select>
-        <input id="ce_city" placeholder="City" style="min-width:120px">
-        <select id="ce_mode" style="min-width:110px"><option>Offline</option><option>Online</option><option>Hybrid</option></select>
+        <input id="ce_title" placeholder="Event title *" style="min-width:220px">
+        <input id="ce_organizer" placeholder="Organizer / company" style="min-width:160px">
+        <select id="ce_type" style="min-width:130px">
+          <option>Hackathon</option><option>Ideathon</option><option>Hiring Challenge</option>
+          <option>Government</option><option>Conference</option><option>Meetup</option><option>Summit</option><option>Workshop</option>
+        </select>
+        <input id="ce_city" placeholder="City / location" style="min-width:120px">
+        <select id="ce_mode" style="min-width:110px"><option>Online</option><option>Offline</option><option>Hybrid</option></select>
       </div>
       <div class="controls" style="flex-wrap:wrap;gap:8px;margin-top:8px">
         <label class="muted" style="font-size:.75rem">Start <input id="ce_starts" type="date"></label>
         <label class="muted" style="font-size:.75rem">End <input id="ce_ends" type="date"></label>
         <label class="muted" style="font-size:.75rem">Deadline <input id="ce_deadline" type="date"></label>
-        <input id="ce_price" placeholder="Price (e.g. ₹999 / Free)" style="min-width:150px">
+        <input id="ce_prize" placeholder="Prize (e.g. ₹1,00,000)" style="min-width:150px">
+        <input id="ce_price" placeholder="Price (Free / ₹999)" style="min-width:130px">
       </div>
       <div class="controls" style="flex-wrap:wrap;gap:8px;margin-top:8px">
-        <input id="ce_ticket" placeholder="Ticket URL (https://...)" style="min-width:240px">
-        <input id="ce_url" placeholder="Event site URL (https://...)" style="min-width:240px">
-        <input id="ce_tags" placeholder="Tags, comma separated" style="min-width:200px">
+        <input id="ce_url" placeholder="Apply / event URL (https://...) *" style="min-width:260px">
+        <input id="ce_tags" placeholder="Tags, comma separated (AI, Web3...)" style="min-width:200px">
+        <label class="muted" style="font-size:.8rem;display:flex;align-items:center;gap:6px"><input id="ce_featured" type="checkbox" style="width:auto"> ⭐ Featured</label>
         <button class="btn" id="ce_addBtn" style="background:#16a34a;color:#fff">+ Add event</button>
       </div>
       <p class="muted" id="ce_msg" style="font-size:.78rem;margin:8px 0 0"></p>
@@ -312,9 +317,11 @@ async function loadCommunity(){
 function renderCommunity(list){
   const el=$("#ce_list");
   el.innerHTML=list.length?list.map(e=>`<div class="row">
+    <span class="pill" style="background:${(e.kind==='hackathon')?'#1e3a8a':'#3730a3'};color:#dbeafe">${e.kind==='hackathon'?'🏆 Hack':'🎟️ Comm'}</span>
+    ${e.featured?'<span class="pill" style="background:#854d0e;color:#fde68a">⭐</span>':''}
     <span class="who">${esc(e.title)}</span>
     <span class="meta">${esc(e.type||"")} · ${esc(e.city||"online")} · ${esc(e.starts||"TBA")}${e.ends&&e.ends!==e.starts?"→"+esc(e.ends):""}</span>
-    <span class="meta">${esc(e.price||"")}</span>
+    <span class="meta">${esc(e.prize||e.price||"")}</span>
     <button class="btn ghost" style="padding:4px 8px;font-size:.7rem" data-cedel="${esc(e.id)}">Delete</button></div>`).join(""):'<p class="muted">No owner-added events yet. (Curated + scraped events still show on the site.)</p>';
   el.querySelectorAll("[data-cedel]").forEach(b=>b.onclick=()=>delCommunity(b.dataset.cedel));
 }
@@ -322,23 +329,25 @@ async function addCommunity(){
   const title=$("#ce_title").value.trim();
   if(!title){$("#ce_msg").textContent="Title is required.";return;}
   const body={
-    title, organizer:$("#ce_organizer").value.trim(), type:$("#ce_type").value,
+    kind:$("#ce_kind").value, title, organizer:$("#ce_organizer").value.trim(),
+    type:$("#ce_type").value, category:$("#ce_type").value,
     city:$("#ce_city").value.trim(), mode:$("#ce_mode").value,
     starts:$("#ce_starts").value, ends:$("#ce_ends").value, deadline:$("#ce_deadline").value,
-    price:$("#ce_price").value.trim(), ticket_url:$("#ce_ticket").value.trim(),
-    url:$("#ce_url").value.trim(),
+    prize:$("#ce_prize").value.trim(), price:$("#ce_price").value.trim(),
+    url:$("#ce_url").value.trim(), ticket_url:$("#ce_url").value.trim(),
     tags:$("#ce_tags").value.split(",").map(s=>s.trim()).filter(Boolean),
-    dates_confirmed:true
+    featured:$("#ce_featured").checked, dates_confirmed:true
   };
   const r=await ownerPost("/api/owner/community/add",body);const d=await r.json();
   if(d.ok){
     $("#ce_msg").textContent="✅ Added — it's live on the site now.";
-    ["ce_title","ce_organizer","ce_city","ce_price","ce_ticket","ce_url","ce_tags","ce_starts","ce_ends","ce_deadline"].forEach(id=>$("#"+id).value="");
+    ["ce_title","ce_organizer","ce_city","ce_prize","ce_price","ce_url","ce_tags","ce_starts","ce_ends","ce_deadline"].forEach(id=>$("#"+id).value="");
+    $("#ce_featured").checked=false;
     renderCommunity(d.events||[]);
   }else $("#ce_msg").textContent="Could not add event.";
 }
 async function delCommunity(id){
-  if(!confirm("Remove this community event from the site?"))return;
+  if(!confirm("Remove this event from the site?"))return;
   const r=await ownerPost("/api/owner/community/delete",{id});const d=await r.json();
   renderCommunity(d.events||[]);
 }

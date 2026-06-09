@@ -247,8 +247,18 @@ def aggregate():
         db.archive(deduped, is_ended)
     except Exception as e:
         print("[db] archive failed:", e)
+    # admin-added hackathons (from the owner dashboard) always included
+    try:
+        for a in db.list_community_events(kind="hackathon"):
+            active_a = normalize(a)
+            if not is_ended(active_a):
+                deduped.append(active_a)
+    except Exception:
+        pass
     active = [x for x in deduped if not is_ended(x)]
     active = _balance_by_platform(active)
+    # featured first within the balanced order
+    active.sort(key=lambda x: 0 if x.get("featured") else 1)
     return active, meta
 
 
@@ -335,9 +345,9 @@ def _merge_community():
             merged.append(s)
     except Exception as e:
         meta = [{"platform": "scrapers", "status": "error", "error": str(e)[:100]}]
-    # 3) owner-added events (highest trust, override duplicates by id)
+    # 3) owner-added community events (hackathon-kind ones go to the main feed)
     try:
-        for a in db.list_community_events():
+        for a in db.list_community_events(kind="community"):
             merged.append(a)
     except Exception:
         pass

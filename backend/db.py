@@ -630,33 +630,40 @@ def geo_lookup(ip):
 
 # ---------- admin-managed community events (owner dashboard CRUD) ----------
 def add_community_event(e):
-    """Add or update a community event from the owner dashboard. Sanitised."""
+    """Add/update an admin event from the owner dashboard. Supports BOTH hackathons
+    (kind='hackathon' → shows in the main feed) and community events (default →
+    Community tab), plus a 'featured' flag for the homepage Featured strip."""
     import hashlib
     title = clean(e.get("title"), 140)
     if not title:
         return None
+    kind = (clean(e.get("kind"), 20) or "community").lower()
+    is_hack = kind == "hackathon"
     eid = clean(e.get("id"), 60) or "admin-" + hashlib.md5(
         (title + str(e.get("starts", ""))).encode()).hexdigest()[:10]
     rec = {
         "id": eid,
         "title": title,
         "organizer": clean(e.get("organizer"), 100),
-        "type": clean(e.get("type"), 30) or "Conference",
-        "category": clean(e.get("type"), 30) or "Conference",
-        "platform": "Community",
+        "kind": kind,
+        "type": clean(e.get("type"), 30) or ("Hackathon" if is_hack else "Conference"),
+        "category": clean(e.get("category") or e.get("type"), 30) or ("Hackathon" if is_hack else "Conference"),
+        "platform": clean(e.get("platform"), 30) or ("HackHunt" if is_hack else "Community"),
         "city": clean(e.get("city"), 60),
-        "mode": clean(e.get("mode"), 30) or "Offline",
-        "location": clean(e.get("location"), 120),
+        "mode": clean(e.get("mode"), 30) or "Online",
+        "location": clean(e.get("location"), 120) or clean(e.get("city"), 60),
         "starts": clean(e.get("starts"), 30),
         "ends": clean(e.get("ends"), 30) or clean(e.get("starts"), 30),
         "deadline": clean(e.get("deadline"), 30),
-        "price": clean(e.get("price"), 60) or "See site",
-        "ticket_url": clean(e.get("ticket_url"), 300),
-        "url": clean(e.get("url"), 300),
+        "prize": clean(e.get("prize"), 80),
+        "price": clean(e.get("price"), 60) or ("Free" if is_hack else "See site"),
+        "ticket_url": clean(e.get("ticket_url") or e.get("url"), 300),
+        "url": clean(e.get("url") or e.get("ticket_url"), 300),
         "tags": clean_list(e.get("tags"), 8, 30),
         "themes": clean_list(e.get("themes"), 5, 30),
         "image": e.get("image") if str(e.get("image", "")).startswith("http") else None,
         "verified": True,
+        "featured": bool(e.get("featured")),
         "dates_confirmed": bool(e.get("dates_confirmed", True)),
         "admin": True,
     }
@@ -666,12 +673,15 @@ def add_community_event(e):
     return rec
 
 
-def list_community_events():
+def list_community_events(kind=None):
+    """All admin events, or only those of a given kind ('hackathon'|'community')."""
     with _LOCK, _conn() as c:
         out = []
         for r in c.execute("SELECT json FROM community_events ORDER BY ts DESC"):
             try:
-                out.append(json.loads(r["json"]))
+                d = json.loads(r["json"])
+                if kind is None or (d.get("kind") or "community") == kind:
+                    out.append(d)
             except Exception:
                 pass
         return out
