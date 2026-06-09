@@ -1,0 +1,16 @@
+{
+  "name": "HackHunt — All Hackathons of India",
+  "short_name": "HackHunt",
+  "description": "Every hackathon, hiring challenge, ideathon & tech conference in India, in one place.",
+  "start_url": "/?src=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07070f",
+  "theme_color": "#07070f",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

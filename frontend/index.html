@@ -4,6 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>HackHunt India · Hackathons, Ideathons, Hiring Challenges & Conferences</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#07070f">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HackHunt">
+<link rel="icon" type="image/png" href="/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async></script>
@@ -87,6 +94,17 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
 .livedot{width:8px;height:8px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:livePulse 1.8s infinite}
 @keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 7px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
 .iconbtn-sm{flex:none;padding:0;width:42px;justify-content:center}
+.jstats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.jstat{background:var(--surface-2);border:1px solid var(--brd);border-radius:13px;padding:13px 8px;text-align:center}
+.jstat b{font-family:Sora;font-size:1.5rem;display:block;background:linear-gradient(90deg,#f5b301,#ff8a3d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.jstat span{color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.badge-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:30px;font-size:.8rem;font-weight:600;border:1px solid var(--brd)}
+.badge-chip.on{background:linear-gradient(90deg,rgba(245,179,1,.16),transparent);border-color:rgba(245,179,1,.45);color:var(--txt)}
+.badge-chip.off{opacity:.45;color:var(--muted)}
+.streak-pill{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:30px;cursor:pointer;
+  font-size:.8rem;font-weight:700;color:#ff8a3d;background:rgba(245,179,1,.12);border:1px solid rgba(245,179,1,.35);flex:none}
+@media(max-width:560px){.jstats{gap:7px}.jstat b{font-size:1.25rem}.streak-pill span.sp-txt{display:none}}
 .sample-flag.featured{background:linear-gradient(90deg,#f5b301,#ff8a3d);color:#241400}
 .card.is-featured{border-color:rgba(245,179,1,.55);box-shadow:0 0 0 1px rgba(245,179,1,.35),0 14px 36px rgba(245,179,1,.12)}
 .search-clear{background:var(--surface-2);border:1px solid var(--brd);color:var(--muted);
@@ -375,6 +393,7 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
     <span class="shield" id="shield" title="This site is actively protected: live attack scanning, auto-ban & encryption">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
       <span class="shield-txt">Protected</span></span>
+    <span class="streak-pill" id="streakPill" style="display:none" title="Your daily streak">🔥 <span id="streakNum">0</span><span class="sp-txt">&nbsp;day</span></span>
     <button class="iconbtn" id="refreshBtn" title="Refresh" data-i="refresh"></button>
     <button class="iconbtn" id="themeBtn" title="Theme" data-i="moon"></button>
     <button class="avatar" id="avatarBtn" title="Profile" style="display:none"></button>
@@ -439,6 +458,18 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
 
 <!-- profile -->
 <div class="panel" id="profileView">
+  <div class="pcard" id="journeyCard" style="margin-bottom:18px">
+    <h2 style="display:flex;align-items:center;gap:8px">🔥 Your journey</h2>
+    <div class="jstats">
+      <div class="jstat"><b id="jStreak">0</b><span>Day streak</span></div>
+      <div class="jstat"><b id="jLongest">0</b><span>Longest</span></div>
+      <div class="jstat"><b id="jSaved">0</b><span>Saved</span></div>
+      <div class="jstat"><b id="jVisits">0</b><span>Visits</span></div>
+    </div>
+    <p class="muted" id="jMsg" style="font-size:.84rem;margin:14px 0 6px"></p>
+    <div class="badges" id="badgeWrap"></div>
+    <button class="btn" id="installBtn" style="display:none;margin-top:16px"><span data-i="download"></span>Install HackHunt app</button>
+  </div>
   <div class="pcard">
     <h2 id="pName">Your profile</h2>
     <div class="org" id="pEmail" style="margin:4px 0 18px"></div>
@@ -514,6 +545,7 @@ moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
 user:'<circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/>',
 heart:'<path d="M19 14c1.5-1.5 3-3.4 3-5.5A5.5 5.5 0 0 0 12 5 5.5 5.5 0 0 0 2 8.5c0 2.1 1.5 4 3 5.5l7 7Z"/>',
 calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+download:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
 share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
 external:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
 zap:'<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/>',
@@ -978,6 +1010,7 @@ document.addEventListener("click",function(e){
 
 // ===================== PROFILE =====================
 function renderProfile(){
+  if(typeof renderStreak==="function")renderStreak();
   if(!USER){showGate();return;}
   $("#pName").textContent=USER.name;$("#pEmail").textContent=USER.email||"local profile";
   $("#pCollege").value=USER.college||"";$("#pYear").value=USER.year||"";
@@ -1143,6 +1176,50 @@ async function refreshLive(){
   }catch(e){}
 }
 refreshLive();setInterval(refreshLive,30000);
+
+// ===================== STREAKS + BADGES (retention) =====================
+function bumpStreak(){
+  const today=new Date().toISOString().slice(0,10);
+  let s={};try{s=JSON.parse(localStorage.getItem("hh_streak")||"{}");}catch(e){}
+  if(s.last!==today){
+    const y=new Date(Date.now()-864e5).toISOString().slice(0,10);
+    s.current=(s.last===y)?(s.current||0)+1:1;
+    s.longest=Math.max(s.longest||0,s.current);
+    s.visits=(s.visits||0)+1;
+    s.last=today;
+    localStorage.setItem("hh_streak",JSON.stringify(s));
+  }
+  return s;
+}
+bumpStreak();
+function renderStreak(){
+  let s={};try{s=JSON.parse(localStorage.getItem("hh_streak")||"{}");}catch(e){}
+  const cur=s.current||1,lng=s.longest||1,vis=s.visits||1,sav=(typeof SAVED!=="undefined")?SAVED.size:0;
+  const p=$("#streakPill");
+  if(p){if(cur>=2){$("#streakNum").textContent=cur;p.style.display="inline-flex";}else p.style.display="none";}
+  if($("#jStreak")){$("#jStreak").textContent=cur;$("#jLongest").textContent=lng;$("#jSaved").textContent=sav;$("#jVisits").textContent=vis;}
+  const B=[["🔥","3-day streak",cur>=3],["⚡","7-day streak",cur>=7],["💎","30-day streak",cur>=30],
+           ["🔖","Saved 5",sav>=5],["📚","Saved 15",sav>=15],["🗓️","10 visits",vis>=10],["🏆","30 visits",vis>=30]];
+  const earned=B.filter(b=>b[2]).length;
+  if($("#jMsg"))$("#jMsg").textContent=cur>=2
+    ?`You're on a ${cur}-day streak — keep it going! ${earned}/${B.length} badges earned.`
+    :`Visit daily to build your streak. ${earned}/${B.length} badges earned.`;
+  if($("#badgeWrap"))$("#badgeWrap").innerHTML=B.map(([e,t,on])=>`<span class="badge-chip ${on?'on':'off'}">${e} ${t}</span>`).join("");
+}
+$("#streakPill")&&($("#streakPill").onclick=()=>switchTab("profile"));
+renderStreak();
+
+// ===================== PWA: install + offline =====================
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}
+let deferredPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;const b=$("#installBtn");if(b)b.style.display="inline-flex";});
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+if(isIOS&&!standalone&&$("#installBtn"))$("#installBtn").style.display="inline-flex";
+$("#installBtn")&&($("#installBtn").onclick=async()=>{
+  if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$("#installBtn").style.display="none";}
+  else toast("On iPhone: tap Share ⬆️ then 'Add to Home Screen'","download");
+});
 
 // ===================== DEMO DATA =====================
 const DEMO=[
