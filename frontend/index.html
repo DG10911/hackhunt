@@ -595,6 +595,16 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
       <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.9 10.9c.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 5 18.3 5.3 18.3 5.3c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
       Continue with GitHub
     </a>
+    <div id="refBox" style="margin-top:16px;text-align:left">
+      <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">Have a referral code? <span style="color:var(--faint)">(optional)</span></label>
+      <div style="display:flex;gap:8px">
+        <input id="refInput" autocomplete="off" placeholder="e.g. RAHUL1234"
+          style="flex:1;background:var(--surface-2);border:1px solid var(--brd);border-radius:8px;padding:10px 12px;color:var(--txt);font-size:.9rem;text-transform:uppercase" />
+        <button class="gbtn" id="refApply" type="button"
+          style="width:auto;margin:0;padding:10px 16px;background:var(--accent);color:#fff;font-weight:600">Apply</button>
+      </div>
+      <div id="refOk" style="display:none;margin-top:9px;font-size:.85rem;color:#19e3c7;font-weight:700"></div>
+    </div>
     <p class="note">By continuing you agree to our
       <a href="/terms.html" target="_blank" style="color:var(--accent-2)">Terms</a> &amp;
       <a href="/privacy.html" target="_blank" style="color:var(--accent-2)">Privacy Policy</a> (DPDP Act, 2023).</p>
@@ -1237,14 +1247,37 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)livePoll()
 // ===================== ANALYTICS (owner console) + MAINTENANCE =====================
 const API_TRACK=BASE+"/api/track", API_HEALTH=BASE+"/api/health";
 let SID=localStorage.getItem("hh_sid");if(!SID){SID="s-"+Math.random().toString(36).slice(2,11);localStorage.setItem("hh_sid",SID);}
-// capture referral code from ?ref=CODE so the inviting ambassador gets the credit
+// ---- Referral capture: from ?ref=CODE in the URL, OR typed manually in the gate ----
 (function(){try{
-  const r=new URLSearchParams(location.search).get("ref");
-  if(r)localStorage.setItem("hh_ref",r.trim().toUpperCase().slice(0,40));
-  // pass the stored ref into the GitHub OAuth redirect (server can't read localStorage)
-  const ref=localStorage.getItem("hh_ref");
-  function patchGH(){if(!ref)return;document.querySelectorAll('a[href^="/auth/github"]').forEach(a=>{a.href="/auth/github?ref="+encodeURIComponent(ref);});}
-  patchGH();document.addEventListener("DOMContentLoaded",patchGH);
+  const urlRef=new URLSearchParams(location.search).get("ref");
+  let arrived=false;
+  if(urlRef){localStorage.setItem("hh_ref",urlRef.trim().toUpperCase().slice(0,40));arrived=true;}
+
+  function applyRef(code){
+    code=(code||"").trim().toUpperCase().slice(0,40);
+    if(!code)return false;
+    localStorage.setItem("hh_ref",code);
+    // GitHub uses a server redirect that can't read localStorage — pass ref in the URL
+    document.querySelectorAll('a[href^="/auth/github"]').forEach(a=>{a.href="/auth/github?ref="+encodeURIComponent(code);});
+    const ok=document.getElementById("refOk");
+    if(ok){ok.textContent="✓ Referral applied: "+code+" — your friend gets the credit when you sign in";ok.style.display="block";}
+    const inp=document.getElementById("refInput");if(inp)inp.value=code;
+    return true;
+  }
+  window.hhApplyRef=applyRef;
+
+  function setup(){
+    const stored=localStorage.getItem("hh_ref");
+    if(stored)applyRef(stored);
+    const btn=document.getElementById("refApply"),inp=document.getElementById("refInput");
+    if(btn&&inp){
+      btn.onclick=()=>{ if(applyRef(inp.value)){ if(typeof toast==="function")toast("Referral code applied ✓",'check'); }
+                        else { if(typeof toast==="function")toast("Enter a valid referral code"); } };
+      inp.addEventListener("keydown",e=>{if(e.key==="Enter")btn.click();});
+    }
+    if(arrived&&typeof toast==="function")toast("✓ Referral applied — sign in to credit your friend",'check');
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup);else setup();
 }catch(e){}})();
 function track(kind,detail){try{fetch(API_TRACK,{method:"POST",headers:{"Content-Type":"application/json"},
   keepalive:true,body:JSON.stringify({sid:SID,email:USER?.email||"",name:USER?.name||"Guest",
