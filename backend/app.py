@@ -1430,6 +1430,12 @@ def _email_scheduler():
     reminders (~9 AM IST) and a weekly digest on Mondays. No-ops silently until
     SMTP env vars are set, so it's safe to run always."""
     global _LAST_REMIND, _LAST_DIGEST
+    # Recover last-sent dates from the DB so a redeploy/restart never re-sends.
+    try:
+        _LAST_REMIND = db.get_setting("last_remind", "") or ""
+        _LAST_DIGEST = db.get_setting("last_digest", "") or ""
+    except Exception:
+        pass
     while True:
         try:
             import emailer
@@ -1439,9 +1445,11 @@ def _email_scheduler():
             if after_9ist and today != _LAST_REMIND:
                 emailer.run_reminders()
                 _LAST_REMIND = today
+                db.set_setting("last_remind", today)
             if now.tm_wday == 0 and after_9ist and today != _LAST_DIGEST:  # Monday
                 emailer.run_digest(_CACHE.get("data") or [])
                 _LAST_DIGEST = today
+                db.set_setting("last_digest", today)
         except Exception as e:
             print("[email-sched] error:", e)
         time.sleep(1800)                         # check every 30 min
