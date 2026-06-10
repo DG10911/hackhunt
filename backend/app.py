@@ -1020,11 +1020,33 @@ def email_test():
     import json as _j
     import urllib.request
     import urllib.error
+    # ?format=digest or ?format=reminder previews the REAL template (sent only to you)
+    fmt = (request.args.get("format") or "").lower()
+    name = to.split("@")[0]
+    if fmt == "digest":
+        evs = list(_CACHE.get("data") or [])
+        upcoming = [e for e in evs
+                    if (emailer._days_to(e.get("deadline") or e.get("starts")) is None
+                        or emailer._days_to(e.get("deadline") or e.get("starts")) >= 0)]
+        top = sorted(upcoming or evs,
+                     key=lambda e: -(int(e.get("participants") or 0)
+                                     if str(e.get("participants") or "0").isdigit() else 0))[:8]
+        subject = "🚀 Top hackathons this week on HackHunt"
+        html = emailer._render_digest(name, top)
+    elif fmt == "reminder":
+        evs = list(_CACHE.get("data") or [])
+        due = [e for e in evs
+               if (emailer._days_to(e.get("deadline") or e.get("starts")) is not None
+                   and 0 <= emailer._days_to(e.get("deadline") or e.get("starts")) <= 14)][:6]
+        subject = f"⏳ {len(due)} hackathon deadline{'s' if len(due) != 1 else ''} closing soon"
+        html = emailer._render(name, due or evs[:4])
+    else:
+        subject = "HackHunt test email"
+        html = ("<div style='font-family:Inter,Arial,sans-serif'>"
+                "<h2 style='color:#7c5cff'>It works! 🎉</h2><p>Your HackHunt email "
+                "system is set up correctly.</p></div>")
     payload = _j.dumps({"from": emailer.RESEND_FROM, "to": [to],
-                        "subject": "HackHunt test email",
-                        "html": "<div style='font-family:Inter,Arial,sans-serif'>"
-                                "<h2 style='color:#7c5cff'>It works! 🎉</h2><p>Your HackHunt email "
-                                "system is set up correctly.</p></div>"}).encode("utf-8")
+                        "subject": subject, "html": html}).encode("utf-8")
     req = urllib.request.Request("https://api.resend.com/emails", data=payload, method="POST",
                                  headers={"Authorization": "Bearer " + emailer.RESEND_API_KEY,
                                           "Content-Type": "application/json",
