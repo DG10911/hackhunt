@@ -1102,12 +1102,20 @@ def _seo_block():
     ld_json = json.dumps({"@context": "https://schema.org", "@type": "ItemList",
                           "name": "Hackathons & tech events in India", "itemListElement": items},
                          ensure_ascii=False)
+    nav = ('<nav><a href="/c/hackathons">Hackathons in India</a>'
+           '<a href="/c/hiring-challenges">Hiring challenges</a>'
+           '<a href="/c/ideathons">Ideathons</a>'
+           '<a href="/c/conferences">Tech conferences</a>'
+           '<a href="/in/bangalore">Hackathons in Bangalore</a>'
+           '<a href="/in/delhi">Hackathons in Delhi</a>'
+           '<a href="/in/mumbai">Hackathons in Mumbai</a>'
+           '<a href="/in/online">Online hackathons</a></nav>')
     crawl = ('<section aria-hidden="false" style="position:absolute;width:1px;height:1px;'
              'overflow:hidden;clip:rect(0 0 0 0)">'
              '<h1>Hackathons, hiring challenges &amp; tech conferences in India</h1>'
              '<p>Browse %d live hackathons, ideathons, hiring challenges and tech conferences '
-             'across India with deadlines and direct apply links on HackHunt.</p><ul>%s</ul></section>'
-             % (len(evs), "".join(lis)))
+             'across India with deadlines and direct apply links on HackHunt.</p>%s<ul>%s</ul></section>'
+             % (len(evs), nav, "".join(lis)))
     return crawl + '<script type="application/ld+json">' + ld_json + '</script>'
 
 
@@ -1133,16 +1141,212 @@ def robots():
 
 @app.route("/sitemap.xml")
 def sitemap():
-    pages = ["/", "/ambassador.html", "/terms.html", "/privacy.html", "/offer-letter.html"]
     today = time.strftime("%Y-%m-%d")
-    urls = "".join(
-        '<url><loc>https://hackhunt.xyz%s</loc><lastmod>%s</lastmod>'
-        '<changefreq>%s</changefreq><priority>%s</priority></url>'
-        % (p, today, "daily" if p == "/" else "weekly", "1.0" if p == "/" else "0.6")
-        for p in pages)
+    static_pages = ["/ambassador.html", "/terms.html", "/privacy.html", "/offer-letter.html"]
+    cat_pages = ["/c/" + k for k in _SEO_CATS]
+    city_pages = ["/in/" + c for c in _SEO_CITIES]
+    ev_pages = []
+    try:
+        for e in _seo_events()[:400]:
+            eid = str(e.get("id") or "")
+            if eid:
+                ev_pages.append("/hackathon/" + eid)
+    except Exception:
+        pass
+
+    def u(p, prio, freq):
+        return ('<url><loc>https://hackhunt.xyz%s</loc><lastmod>%s</lastmod>'
+                '<changefreq>%s</changefreq><priority>%s</priority></url>'
+                % (p, today, freq, prio))
+
+    urls = u("/", "1.0", "daily")
+    for p in static_pages:
+        urls += u(p, "0.6", "weekly")
+    for p in cat_pages + city_pages:
+        urls += u(p, "0.8", "daily")
+    for p in ev_pages:
+        urls += u(p, "0.7", "daily")
     xml = ('<?xml version="1.0" encoding="UTF-8"?>'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + urls + '</urlset>')
     return app.response_class(xml, mimetype="application/xml")
+
+
+# ===================== PROGRAMMATIC SEO PAGES =====================
+# A real crawlable page + URL per event, per category and per city. These are the
+# entry points Google/Bing/AI rank for ("hackathons in bangalore", an event name).
+_SEO_CATS = {"hackathons": "Hackathon", "ideathons": "Ideathon",
+             "hiring-challenges": "Hiring Challenge", "government-hackathons": "Government",
+             "conferences": "Conference"}
+_SEO_CITIES = ["bangalore", "mumbai", "delhi", "hyderabad", "pune", "chennai", "kolkata", "online"]
+
+
+def _slug(s):
+    import re as _re
+    s = _re.sub(r"[^a-z0-9]+", "-", str(s or "").lower()).strip("-")
+    return s or "x"
+
+
+def _seo_events():
+    out = []
+    try:
+        out += (_CACHE.get("data") or [])
+    except Exception:
+        pass
+    try:
+        out += (_COMM.get("data") or [])
+    except Exception:
+        pass
+    return out
+
+
+_SEO_TPL = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{TITLE}}</title>
+<meta name="description" content="{{DESC}}">
+<link rel="canonical" href="{{CANON}}">
+<meta property="og:type" content="website"><meta property="og:title" content="{{TITLE}}">
+<meta property="og:description" content="{{DESC}}"><meta property="og:url" content="{{CANON}}">
+<meta property="og:image" content="https://hackhunt.xyz/icon-512.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<style>
+body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:#07070f;color:#eef0fb;line-height:1.6}
+.wrap{max-width:760px;margin:0 auto;padding:26px 18px 60px}
+a{color:#7c5cff;text-decoration:none}.back{font-size:.85rem;color:#9aa0bb;display:inline-block;margin-bottom:18px}
+h1{font-size:1.7rem;margin:.2rem 0 .6rem;line-height:1.2}
+.pill{display:inline-block;background:rgba(124,92,255,.18);color:#b6a4ff;font-size:.72rem;font-weight:700;padding:4px 11px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em}
+.meta{color:#9aa0bb;font-size:.95rem}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}
+.tag{background:#16162a;border:1px solid #262640;color:#cfc8ff;font-size:.74rem;padding:5px 11px;border-radius:8px}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:12px 18px;border-radius:12px;border:1px solid #262640;color:#eef0fb;font-weight:700;font-size:.92rem}
+.btn.primary{background:linear-gradient(90deg,#7c5cff,#19e3c7);color:#fff;border:0}
+.note{color:#6b7390;font-size:.82rem;margin-top:26px}
+.list{display:grid;gap:10px;margin:18px 0}
+.ecard{display:flex;flex-direction:column;background:#12121f;border:1px solid #262640;border-radius:13px;padding:14px 16px;color:#eef0fb}
+.ecard:hover{border-color:#7c5cff}.ecard b{font-size:1rem}.ecard span{color:#9aa0bb;font-size:.82rem;margin-top:3px}
+.brand{font-family:Sora,sans-serif;font-weight:800;font-size:1.2rem}.grad{background:linear-gradient(90deg,#7c5cff,#19e3c7);-webkit-background-clip:text;background-clip:text;color:transparent}
+</style>{{JSONLD}}</head><body><div class="wrap">{{BODY}}</div></body></html>"""
+
+
+def _render_seo(title, desc, canon, body, jsonld=""):
+    j = ('<script type="application/ld+json">' + jsonld + '</script>') if jsonld else ""
+    out = _SEO_TPL.replace("{{TITLE}}", _html.escape(title))
+    out = out.replace("{{DESC}}", _html.escape(desc[:160]))
+    out = out.replace("{{CANON}}", canon)
+    out = out.replace("{{JSONLD}}", j)
+    out = out.replace("{{BODY}}", body)
+    return app.response_class(out, mimetype="text/html")
+
+
+def _list_page(h1, intro, evs):
+    if evs:
+        cards = "".join(
+            "<a class='ecard' href='/hackathon/%s'><b>%s</b><span>%s%s</span></a>" % (
+                _html.escape(str(e.get("id"))),
+                _html.escape(str(e.get("title") or "Event")),
+                _html.escape(str(e.get("organizer") or e.get("platform") or "")),
+                (" · " + _html.escape(str(e.get("starts") or e.get("deadline") or ""))
+                 if (e.get("starts") or e.get("deadline")) else ""))
+            for e in evs[:60])
+    else:
+        cards = "<p class='note'>New events are added daily — open the live feed.</p>"
+    return ("<a class='back' href='/'>&larr; HackHunt</a>"
+            "<div class='brand'>Hack<span class='grad'>Hunt</span></div>"
+            "<h1>%s</h1><p class='meta'>%s</p><div class='list'>%s</div>"
+            "<div class='cta'><a class='btn primary' href='/'>Open the live HackHunt feed &rarr;</a></div>"
+            % (_html.escape(h1), _html.escape(intro), cards))
+
+
+@app.route("/hackathon/<path:eid>")
+def seo_event(eid):
+    try:
+        key = str(eid).strip().rstrip("/")
+        e = next((x for x in _seo_events() if str(x.get("id")) == key), None)
+        if not e:
+            return redirect("/")
+        canon = "https://hackhunt.xyz/hackathon/" + _html.escape(key)
+        t = str(e.get("title") or "Hackathon")
+        cat = _html.escape(str(e.get("category") or e.get("type") or "Hackathon"))
+        loc = _html.escape(str(e.get("location") or e.get("city") or e.get("mode") or "India"))
+        org = _html.escape(str(e.get("organizer") or ""))
+        rows = []
+        if e.get("starts"):
+            rows.append("<b>Starts:</b> " + _html.escape(str(e.get("starts"))) +
+                        (" &ndash; " + _html.escape(str(e.get("ends")))
+                         if e.get("ends") and e.get("ends") != e.get("starts") else ""))
+        if e.get("deadline"):
+            rows.append("<b>Deadline:</b> " + _html.escape(str(e.get("deadline"))))
+        if e.get("prize") or e.get("price"):
+            rows.append("<b>Prize:</b> " + _html.escape(str(e.get("prize") or e.get("price"))))
+        rows.append("<b>Mode / location:</b> " + loc)
+        if org:
+            rows.append("<b>Organizer:</b> " + org)
+        tags = "".join("<span class='tag'>%s</span>" % _html.escape(str(x))
+                       for x in (e.get("tags") or [])[:8])
+        apply_url = _html.escape(str(e.get("url") or e.get("ticket_url") or "https://hackhunt.xyz/"))
+        body = ("<a class='back' href='/'>&larr; HackHunt</a>"
+                "<span class='pill'>%s</span><h1>%s</h1>"
+                "<p class='meta'>%s</p><div class='tags'>%s</div>"
+                "<div class='cta'><a class='btn primary' href='%s' rel='noopener'>Apply / open event &rarr;</a>"
+                "<a class='btn' href='/'>Browse all hackathons in India</a></div>"
+                "<p class='note'>Listed on HackHunt &mdash; every hackathon, hiring challenge and tech "
+                "conference in India in one place. Free for students.</p>"
+                % (cat, _html.escape(t), "<br>".join(rows), tags, apply_url))
+        ld = {"@context": "https://schema.org", "@type": "Event", "name": e.get("title"),
+              "url": canon, "startDate": e.get("starts") or e.get("deadline") or "",
+              "location": {"@type": "Place", "name": e.get("location") or e.get("city") or "India",
+                           "address": "India"},
+              "organizer": {"@type": "Organization", "name": e.get("organizer") or "Organizer"}}
+        if e.get("ends"):
+            ld["endDate"] = e.get("ends")
+        desc = (str(e.get("organizer") or "") + " " + str(e.get("category") or "Hackathon")
+                + " in India. Dates, deadline & direct apply link on HackHunt.")
+        return _render_seo(t + " — Apply | HackHunt", desc, canon, body,
+                           json.dumps(ld, ensure_ascii=False))
+    except Exception:
+        return redirect("/")
+
+
+@app.route("/c/<cat>")
+def seo_category(cat):
+    try:
+        name = _SEO_CATS.get(str(cat).lower())
+        if not name:
+            return redirect("/")
+        evs = [e for e in _seo_events()
+               if e.get("category") == name or e.get("type") == name
+               or (name == "Hackathon" and not e.get("type"))]
+        canon = "https://hackhunt.xyz/c/" + str(cat).lower()
+        h1 = name + "s in India 2026"
+        body = _list_page(h1, "Every " + name.lower()
+                          + " in India with dates, deadlines and direct apply links.", evs)
+        return _render_seo(h1 + " — HackHunt",
+                           "Browse all " + name.lower() + "s in India 2026 with deadlines and apply links. Free for students.",
+                           canon, body)
+    except Exception:
+        return redirect("/")
+
+
+@app.route("/in/<city>")
+def seo_city(city):
+    try:
+        cs = str(city).replace("-", " ").strip().lower()
+        if not cs:
+            return redirect("/")
+        evs = [e for e in _seo_events()
+               if cs in (str(e.get("location") or "") + " " + str(e.get("city") or "")
+                         + " " + str(e.get("mode") or "")).lower()]
+        canon = "https://hackhunt.xyz/in/" + _slug(cs)
+        disp = cs.title()
+        h1 = "Hackathons in " + disp + " 2026"
+        body = _list_page(h1, "Hackathons, hiring challenges and tech events in "
+                          + disp + ", India.", evs)
+        return _render_seo(h1 + " — HackHunt",
+                           "Find hackathons, hiring challenges and tech conferences in " + disp
+                           + ", India. Deadlines + direct apply links.", canon, body)
+    except Exception:
+        return redirect("/")
 
 
 AUTO_REFRESH_SECS = 10 * 60  # re-scrape every 10 min so new events appear live
