@@ -34,6 +34,9 @@ SMTP_PASS = os.environ.get("SMTP_PASS", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USER or "noreply@hackhunt.local")
 REMIND_DAYS = int(os.environ.get("REMIND_DAYS", "3"))
 APP_URL = os.environ.get("APP_URL", "http://localhost:5050")
+# Resend (HTTPS email API) — works on hosts that block SMTP ports, like Railway.
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM = os.environ.get("RESEND_FROM", "HackHunt <onboarding@resend.dev>")
 
 _DATE = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
 
@@ -50,7 +53,33 @@ def _days_to(d):
         return None
 
 
+def _send_resend(to, subject, html):
+    """Send via Resend's HTTPS API (port 443 — never blocked by cloud hosts)."""
+    import json
+    import urllib.request
+    body = json.dumps({"from": RESEND_FROM, "to": [to], "subject": subject,
+                       "html": html}).encode("utf-8")
+    req = urllib.request.Request("https://api.resend.com/emails", data=body, method="POST",
+                                 headers={"Authorization": "Bearer " + RESEND_API_KEY,
+                                          "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            r.read()
+        return True
+    except Exception as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", "ignore")[:200]  # type: ignore
+        except Exception:
+            pass
+        print(f"[email] resend failed to {to}: {e} {detail}")
+        return False
+
+
 def send_email(to, subject, html):
+    # Prefer Resend (HTTPS) when configured — required on Railway (SMTP ports blocked).
+    if RESEND_API_KEY:
+        return _send_resend(to, subject, html)
     if not (SMTP_HOST and SMTP_USER and SMTP_PASS):
         print(f"[email] SMTP not configured — would send to {to}: {subject}")
         return False

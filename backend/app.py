@@ -998,12 +998,10 @@ def run_reminders():
     token = os.environ.get("REMINDER_TOKEN", "")
     if token and request.args.get("token") != token:
         return jsonify({"ok": False, "error": "unauthorized"}), 401
-    try:
-        import emailer
-        sent = emailer.run_reminders()
-        return jsonify({"ok": True, "sent": sent})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)[:160]}), 200
+    # send in the background so the request returns instantly (no 524 timeout)
+    import emailer
+    threading.Thread(target=lambda: emailer.run_reminders(), daemon=True).start()
+    return jsonify({"ok": True, "started": True, "note": "reminders sending in background"})
 
 
 @app.route("/api/run-digest", methods=["POST"])
@@ -1011,12 +1009,10 @@ def run_digest():
     token = os.environ.get("REMINDER_TOKEN", "")
     if token and request.args.get("token") != token:
         return jsonify({"ok": False, "error": "unauthorized"}), 401
-    try:
-        import emailer
-        sent = emailer.run_digest(_CACHE.get("data") or [])
-        return jsonify({"ok": True, "sent": sent})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)[:160]}), 200
+    import emailer
+    data = list(_CACHE.get("data") or [])
+    threading.Thread(target=lambda: emailer.run_digest(data), daemon=True).start()
+    return jsonify({"ok": True, "started": True, "note": "digest sending in background"})
 
 
 # ---------- GitHub OAuth ----------
