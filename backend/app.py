@@ -114,12 +114,12 @@ def _security_headers(resp):
     resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     resp.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://cdnjs.cloudflare.com https://www.googletagmanager.com; "
+        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://cdnjs.cloudflare.com https://www.googletagmanager.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googleadservices.com https://adservice.google.com https://tpc.googlesyndication.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' data: https:; "
-        "connect-src 'self' https://accounts.google.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; "
-        "frame-src https://accounts.google.com; "
+        "connect-src 'self' https://accounts.google.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://googleads.g.doubleclick.net https://*.doubleclick.net https://*.google.com; "
+        "frame-src https://accounts.google.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.googlesyndication.com https://www.google.com; "
         "frame-ancestors 'self'; "
         "base-uri 'self'; "
         "form-action 'self'; "
@@ -1185,6 +1185,12 @@ def robots():
     return app.response_class(body, mimetype="text/plain")
 
 
+@app.route("/ads.txt")
+def ads_txt():
+    body = "google.com, pub-4049547964284904, DIRECT, f08c47fec0942fa0\n"
+    return app.response_class(body, mimetype="text/plain")
+
+
 @app.route("/sitemap.xml")
 def sitemap():
     today = time.strftime("%Y-%m-%d")
@@ -1255,6 +1261,7 @@ _SEO_TPL = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <meta property="og:image" content="https://hackhunt.xyz/icon-512.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" href="/icon-192.png">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4049547964284904" crossorigin="anonymous"></script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-CHN47PTB76"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-CHN47PTB76');</script>
 <style>
