@@ -105,30 +105,74 @@ def send_email(to, subject, html):
         return False
 
 
+def _pill(text, bg, fg):
+    return (f'<span style="display:inline-block;background:{bg};color:{fg};font-size:12px;'
+            f'font-weight:700;padding:5px 11px;border-radius:20px;margin:0 6px 7px 0;'
+            f'mso-line-height-rule:exactly">{text}</span>')
+
+
+def _event_card(e):
+    title = e.get("title", "Event")
+    org = e.get("organizer") or e.get("platform") or ""
+    url = e.get("url") or e.get("ticket_url") or APP_URL
+    loc = e.get("location") or e.get("city") or e.get("mode") or "Online"
+    d = _days_to(e.get("deadline") or e.get("starts"))
+    if d == 0:
+        pills = _pill("Closes today", "#3a1212", "#ff9a9a")
+    elif d is not None and d > 0:
+        pills = _pill(f"{d} day{'s' if d != 1 else ''} left", "#3a2a0f", "#ffce8a")
+    else:
+        pills = _pill("Open now", "#0f3a2a", "#7cffc0")
+    if e.get("prize"):
+        pills += _pill(str(e.get("prize"))[:28], "#2a240f", "#ffe08a")
+    pills += _pill(str(loc)[:24], "#1c2433", "#9fc0ff")
+    if e.get("participants"):
+        try:
+            pills += _pill(f"{int(e['participants']):,} joined", "#241c33", "#cdb6ff")
+        except Exception:
+            pass
+    return (f'<table width="100%" cellpadding="0" cellspacing="0" role="presentation" '
+            f'style="margin:0 0 14px"><tr><td style="background:#191926;border:1px solid #2a2a40;'
+            f'border-radius:14px;padding:18px 18px 14px">'
+            f'<div style="font-size:17px;font-weight:700;color:#ffffff;line-height:1.3">{title}</div>'
+            f'<div style="font-size:13px;color:#9aa0bb;margin:4px 0 13px">{org}</div>'
+            f'<div>{pills}</div>'
+            f'<a href="{url}" style="display:inline-block;margin-top:8px;background:#5b3df5;color:#ffffff;'
+            f'font-weight:700;font-size:14px;text-decoration:none;padding:10px 22px;border-radius:10px">'
+            f'Apply now &rarr;</a></td></tr></table>')
+
+
+def _shell(headline, sub, cards, cta_label):
+    return (
+        f'<div style="background:#07070f;padding:26px 12px;font-family:\'Helvetica Neue\',Arial,sans-serif">'
+        f'<table align="center" width="600" cellpadding="0" cellspacing="0" role="presentation" '
+        f'style="max-width:600px;margin:0 auto;background:#101019;border-radius:18px;overflow:hidden;border:1px solid #20203a">'
+        f'<tr><td style="background:#5b3df5;padding:22px 26px">'
+        f'<div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px">Hack'
+        f'<span style="color:#9af0dd">Hunt</span></div>'
+        f'<div style="font-size:11px;color:#d6ccff;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">'
+        f'All hackathons of India, one place</div></td></tr>'
+        f'<tr><td style="padding:26px 26px 8px">'
+        f'<div style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 6px">{headline}</div>'
+        f'<div style="font-size:14px;color:#9aa0bb;line-height:1.6;margin:0 0 20px">{sub}</div>'
+        f'{cards}'
+        f'<div style="text-align:center;margin:12px 0 6px">'
+        f'<a href="{APP_URL}" style="display:inline-block;background:#19e3c7;color:#04211a;font-weight:800;'
+        f'font-size:15px;text-decoration:none;padding:13px 28px;border-radius:12px">{cta_label}</a></div>'
+        f'</td></tr>'
+        f'<tr><td style="padding:18px 26px;border-top:1px solid #20203a">'
+        f'<div style="font-size:12px;color:#6b7390;line-height:1.6">You\'re receiving this because you '
+        f'joined HackHunt. Open <a href="{APP_URL}" style="color:#8a7bff;text-decoration:none">hackhunt.xyz</a> '
+        f'and tap your profile to manage preferences.</div></td></tr>'
+        f'</table></div>')
+
+
 def _render(name, events):
-    rows = ""
-    for e in events:
-        dl = e.get("deadline") or e.get("starts") or "TBA"
-        d = _days_to(e.get("deadline") or e.get("starts"))
-        when = "today" if d == 0 else (f"in {d} day{'s' if d != 1 else ''}" if d and d > 0 else dl)
-        url = e.get("ticket_url") or e.get("url") or APP_URL
-        rows += f"""<tr>
-          <td style="padding:10px 0;border-bottom:1px solid #eee">
-            <b>{e.get('title','Event')}</b><br>
-            <span style="color:#666;font-size:13px">{e.get('organizer','')} · deadline {dl} ({when})</span><br>
-            <a href="{url}" style="color:#7c5cff;font-size:13px">Open event →</a>
-          </td></tr>"""
-    return f"""<div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:auto">
-      <h2 style="color:#7c5cff">⏳ Deadlines coming up, {name.split(' ')[0]}!</h2>
-      <p style="color:#444">These saved events close within {REMIND_DAYS} days:</p>
-      <table style="width:100%;border-collapse:collapse">{rows}</table>
-      <p style="margin-top:20px"><a href="{APP_URL}"
-        style="background:#7c5cff;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">
-        Open HackHunt</a></p>
-      <p style="color:#999;font-size:12px;margin-top:24px">
-        You're getting this because you saved events on HackHunt India.
-        Manage or unsubscribe in your profile.</p>
-    </div>"""
+    cards = "".join(_event_card(e) for e in events)
+    first = (name or "there").split(" ")[0]
+    return _shell(f"Deadlines closing soon, {first}",
+                  f"These saved opportunities close within {REMIND_DAYS} days — don't miss your shot:",
+                  cards, "Open HackHunt")
 
 
 def run_reminders():
@@ -139,46 +183,39 @@ def run_reminders():
                    and 0 <= _days_to(e.get("deadline") or e.get("starts")) <= REMIND_DAYS)]
         if not due or not email or "@" not in email:
             continue
-        if send_email(email, f"⏳ {len(due)} HackHunt deadline(s) within {REMIND_DAYS} days", _render(name, due)):
+        due.sort(key=lambda e: _days_to(e.get("deadline") or e.get("starts")))  # soonest first
+        subj = f"⏳ {len(due)} hackathon deadline{'s' if len(due) != 1 else ''} closing soon"
+        if send_email(email, subj, _render(name, due)):
             sent += 1
     print(f"[reminders] sent {sent} email(s)")
     return sent
 
 
 def _render_digest(name, events):
-    rows = ""
-    for e in events:
-        dl = e.get("deadline") or e.get("starts") or "TBA"
-        d = _days_to(e.get("deadline") or e.get("starts"))
-        when = ("closes today" if d == 0 else
-                (f"closes in {d} day{'s' if d != 1 else ''}" if (d is not None and d > 0) else "open now"))
-        url = e.get("url") or e.get("ticket_url") or APP_URL
-        prize = (" · " + str(e.get("prize"))) if e.get("prize") else ""
-        rows += f"""<tr><td style="padding:11px 0;border-bottom:1px solid #eee">
-            <a href="{url}" style="color:#1a1530;font-weight:600;font-size:15px;text-decoration:none">{e.get('title','Event')}</a><br>
-            <span style="color:#666;font-size:13px">{e.get('organizer','')}{prize} · <b style="color:#7c5cff">{when}</b></span>
-          </td></tr>"""
-    return f"""<div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:auto">
-      <h2 style="color:#7c5cff;margin:0 0 4px">🚀 This week's top hackathons, {name.split(' ')[0]}</h2>
-      <p style="color:#444;margin:0 0 14px">Fresh opportunities on HackHunt — don't miss the deadlines:</p>
-      <table style="width:100%;border-collapse:collapse">{rows}</table>
-      <p style="margin:22px 0"><a href="{APP_URL}"
-        style="background:linear-gradient(90deg,#7c5cff,#19e3c7);color:#fff;padding:11px 20px;border-radius:8px;text-decoration:none">
-        See all on HackHunt</a></p>
-      <p style="color:#999;font-size:12px;margin-top:24px">You're getting this weekly digest because you joined HackHunt.
-        Open the app and tap your profile to manage preferences.</p>
-    </div>"""
+    cards = "".join(_event_card(e) for e in events)
+    first = (name or "there").split(" ")[0]
+    return _shell(f"This week's top hackathons, {first}",
+                  "The biggest, most popular opportunities open right now — apply before they close:",
+                  cards, "See all on HackHunt")
 
 
 def run_digest(events):
-    """Weekly digest of the soonest-closing upcoming events to every user."""
+    """Weekly digest — the most POPULAR upcoming events (by participants) to every user."""
     if not events:
         print("[digest] no events to send")
         return 0
-    def _key(e):
-        d = _days_to(e.get("deadline") or e.get("starts"))
-        return d if (d is not None and d >= 0) else 9999
-    top = sorted(events, key=_key)[:10]
+    upcoming = [e for e in events
+                if (_days_to(e.get("deadline") or e.get("starts")) is None
+                    or _days_to(e.get("deadline") or e.get("starts")) >= 0)]
+    # rank by popularity (participants), then soonest deadline as tiebreak
+    def _rank(e):
+        pop = e.get("participants") or 0
+        try:
+            pop = int(pop)
+        except Exception:
+            pop = 0
+        return -pop
+    top = sorted(upcoming or events, key=_rank)[:8]
     sent = 0
     try:
         users = db.all_users(3000)
@@ -188,7 +225,7 @@ def run_digest(events):
         email = (u.get("email") or "").strip()
         if "@" not in email:
             continue
-        if send_email(email, "🚀 Top hackathons this week — HackHunt", _render_digest(u.get("name") or "there", top)):
+        if send_email(email, "🚀 Top hackathons this week on HackHunt", _render_digest(u.get("name") or "there", top)):
             sent += 1
     print(f"[digest] sent {sent} email(s)")
     return sent
