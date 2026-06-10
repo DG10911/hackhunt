@@ -124,13 +124,24 @@ def upsert_user(u):
         interests = json.dumps(clean_list(u.get("interests"), 20, 30))
         skills = json.dumps(clean_list(u.get("skills"), 25, 30))
         ach = json.dumps(clean_list(u.get("achievements"), 15, 80))
+        ref = clean(u.get("ref"), 40).upper()  # referral code from ?ref=
+        # ignore self-referral: an ambassador can't refer themselves
+        if ref:
+            own = c.execute("SELECT code FROM ambassadors WHERE lower(email)=?",
+                            (email,)).fetchone()
+            if own and own["code"] == ref:
+                ref = ""
         if row:
             c.execute("""UPDATE users SET name=?, picture=?, college=?, year=?, interests=?,
                          skills=?, achievements=?, github=?, linkedin=?, last_seen=? WHERE email=?""",
                       (name, picture, college, year, interests, skills, ach, github, linkedin, now, email))
+            # backfill the referral if this account never had one yet (covers users
+            # who were created before clicking the invite link, e.g. during testing)
+            if ref:
+                cur = c.execute("SELECT ref FROM users WHERE email=?", (email,)).fetchone()
+                if cur and not (cur["ref"] or "").strip():
+                    c.execute("UPDATE users SET ref=? WHERE email=?", (ref, email))
         else:
-            ref = clean(u.get("ref"), 40).upper()  # referral code, set once at signup
-            # ignore self-referral (ambassador using their own link)
             c.execute("""INSERT INTO users(email,name,picture,college,year,interests,skills,
                          achievements,github,linkedin,created,last_seen,ref)
                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",

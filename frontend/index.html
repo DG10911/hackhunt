@@ -1238,7 +1238,14 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)livePoll()
 const API_TRACK=BASE+"/api/track", API_HEALTH=BASE+"/api/health";
 let SID=localStorage.getItem("hh_sid");if(!SID){SID="s-"+Math.random().toString(36).slice(2,11);localStorage.setItem("hh_sid",SID);}
 // capture referral code from ?ref=CODE so the inviting ambassador gets the credit
-(function(){try{const r=new URLSearchParams(location.search).get("ref");if(r)localStorage.setItem("hh_ref",r.trim().toUpperCase().slice(0,40));}catch(e){}})();
+(function(){try{
+  const r=new URLSearchParams(location.search).get("ref");
+  if(r)localStorage.setItem("hh_ref",r.trim().toUpperCase().slice(0,40));
+  // pass the stored ref into the GitHub OAuth redirect (server can't read localStorage)
+  const ref=localStorage.getItem("hh_ref");
+  function patchGH(){if(!ref)return;document.querySelectorAll('a[href^="/auth/github"]').forEach(a=>{a.href="/auth/github?ref="+encodeURIComponent(ref);});}
+  patchGH();document.addEventListener("DOMContentLoaded",patchGH);
+}catch(e){}})();
 function track(kind,detail){try{fetch(API_TRACK,{method:"POST",headers:{"Content-Type":"application/json"},
   keepalive:true,body:JSON.stringify({sid:SID,email:USER?.email||"",name:USER?.name||"Guest",
     kind,detail:(detail||"").slice(0,200),path:activeTab})}).catch(()=>{});}catch(e){}}

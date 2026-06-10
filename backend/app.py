@@ -1085,8 +1085,13 @@ def github_login():
     if not GH_ID:
         return redirect("/?autherror=github_not_configured")
     cb = APP_URL.rstrip("/") + "/auth/github/callback"
+    # carry the referral code through OAuth via the `state` param so the
+    # inviting ambassador still gets credit after the GitHub round-trip
+    ref = (request.args.get("ref") or "").strip().upper()[:40]
+    from urllib.parse import quote
+    state = quote(ref)
     return redirect("https://github.com/login/oauth/authorize"
-                    f"?client_id={GH_ID}&scope=read:user%20user:email&redirect_uri={cb}")
+                    f"?client_id={GH_ID}&scope=read:user%20user:email&redirect_uri={cb}&state={state}")
 
 
 @app.route("/auth/github/callback")
@@ -1106,9 +1111,11 @@ def github_callback():
             emails = requests.get("https://api.github.com/user/emails", headers=h, timeout=15).json()
             prim = [e for e in emails if isinstance(e, dict) and e.get("primary")]
             email = (prim[0]["email"] if prim else (emails[0]["email"] if emails else ""))
+        from urllib.parse import unquote
+        ref = (unquote(request.args.get("state", "")) or "").strip().upper()[:40]
         user = db.upsert_user({"name": u.get("name") or u.get("login"), "email": email,
                                "picture": u.get("avatar_url", ""),
-                               "github": u.get("html_url", "")})
+                               "github": u.get("html_url", ""), "ref": ref})
         from urllib.parse import urlencode
         return redirect("/?" + urlencode({"login": "github", "name": user["name"],
                                           "email": user["email"], "picture": user.get("picture", "")}))
