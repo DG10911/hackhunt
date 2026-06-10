@@ -944,7 +944,8 @@ async function load(refresh){
   let painted=false;
   try{const c=JSON.parse(localStorage.getItem("hh_cache")||"null");
     if(c&&c.data&&c.data.length){ALL=c.data;showSources(c.sources);updateStats();
-      if(activeTab==="hackathons"){buildChips();render();}painted=true;}
+      if(activeTab==="hackathons"){buildChips();render();}painted=true;
+      if(typeof hidePreloader==="function")hidePreloader();}   // hide instantly on first paint
   }catch(e){}
   if(!painted)skeletons();
   // 2) fetch fresh in background
@@ -958,6 +959,7 @@ async function load(refresh){
       toast("Demo mode — backend offline",'refresh');}
     else toast("Showing cached data",'refresh');}
   updateStats();if(activeTab==="hackathons"){buildChips();render();}
+  if(typeof hidePreloader==="function")hidePreloader();   // hide as soon as content is painted
 }
 async function loadCommunity(){skeletons(6);
   try{const r=await fetch(API_COMMUNITY,{cache:"no-store"});if(!r.ok)throw 0;COMMUNITY=(await r.json()).events||[];}
