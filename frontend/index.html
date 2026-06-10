@@ -1275,7 +1275,15 @@ let SID=localStorage.getItem("hh_sid");if(!SID){SID="s-"+Math.random().toString(
                         else { if(typeof toast==="function")toast("Enter a valid referral code"); } };
       inp.addEventListener("keydown",e=>{if(e.key==="Enter")btn.click();});
     }
-    if(arrived&&typeof toast==="function")toast("✓ Referral applied — sign in to credit your friend",'check');
+    const alreadyMember=!!localStorage.getItem("hh_user");
+    if(arrived&&typeof toast==="function"){
+      toast(alreadyMember
+        ? "You're already a member — referrals only count for brand-new sign-ups"
+        : "✓ Referral applied — sign in to credit your friend",'check');
+    }
+    // If they're already signed in, make the gate note honest too
+    if(alreadyMember){const ok=document.getElementById("refOk");
+      if(ok&&ok.style.display==="block")ok.textContent="Referrals only count for new accounts — you're already a member";}
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup);else setup();
 }catch(e){}})();

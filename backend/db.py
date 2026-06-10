@@ -135,11 +135,14 @@ def upsert_user(u):
             c.execute("""UPDATE users SET name=?, picture=?, college=?, year=?, interests=?,
                          skills=?, achievements=?, github=?, linkedin=?, last_seen=? WHERE email=?""",
                       (name, picture, college, year, interests, skills, ach, github, linkedin, now, email))
-            # backfill the referral if this account never had one yet (covers users
-            # who were created before clicking the invite link, e.g. during testing)
+            # A referral counts ONLY for genuinely new users. We still allow a short
+            # grace window so a brand-new signup whose code arrived a moment late
+            # (e.g. lost during the OAuth redirect) is credited — but an account that
+            # already existed before clicking the link is NOT counted.
             if ref:
-                cur = c.execute("SELECT ref FROM users WHERE email=?", (email,)).fetchone()
-                if cur and not (cur["ref"] or "").strip():
+                cur = c.execute("SELECT ref, created FROM users WHERE email=?", (email,)).fetchone()
+                fresh = cur and (now - (cur["created"] or 0) <= 900)  # 15-min grace
+                if cur and fresh and not (cur["ref"] or "").strip():
                     c.execute("UPDATE users SET ref=? WHERE email=?", (ref, email))
         else:
             c.execute("""INSERT INTO users(email,name,picture,college,year,interests,skills,
