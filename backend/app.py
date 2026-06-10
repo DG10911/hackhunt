@@ -1014,17 +1014,27 @@ def email_test():
     to = (request.args.get("to") or "").strip()
     if "@" not in to:
         return jsonify({"ok": False, "error": "add ?to=your@email.com"}), 200
+    import emailer
+    if not emailer.RESEND_API_KEY:
+        return jsonify({"ok": False, "error": "RESEND_API_KEY not set"}), 200
+    import json as _j
+    import urllib.request
+    import urllib.error
+    payload = _j.dumps({"from": emailer.RESEND_FROM, "to": [to],
+                        "subject": "HackHunt test email",
+                        "html": "<div style='font-family:Inter,Arial,sans-serif'>"
+                                "<h2 style='color:#7c5cff'>It works! 🎉</h2><p>Your HackHunt email "
+                                "system is set up correctly.</p></div>"}).encode("utf-8")
+    req = urllib.request.Request("https://api.resend.com/emails", data=payload, method="POST",
+                                 headers={"Authorization": "Bearer " + emailer.RESEND_API_KEY,
+                                          "Content-Type": "application/json"})
     try:
-        import emailer
-        ok = emailer.send_email(
-            to, "HackHunt test email",
-            "<div style='font-family:Inter,Arial,sans-serif'><h2 style='color:#7c5cff'>It works! 🎉</h2>"
-            "<p>Your HackHunt email system is set up correctly. Deadline reminders and the "
-            "weekly digest will now reach students automatically.</p></div>")
-        return jsonify({"ok": ok, "to": to,
-                        "users_in_db": len(db.all_users(5000)),
-                        "from": emailer.RESEND_FROM if emailer.RESEND_API_KEY else "SMTP",
-                        "resend": bool(emailer.RESEND_API_KEY)})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            resp = r.read().decode("utf-8", "ignore")
+        return jsonify({"ok": True, "to": to, "from": emailer.RESEND_FROM, "resend_response": resp[:300]})
+    except urllib.error.HTTPError as e:
+        return jsonify({"ok": False, "status": e.code, "from": emailer.RESEND_FROM,
+                        "resend_error": e.read().decode("utf-8", "ignore")[:400]}), 200
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:200]}), 200
 
