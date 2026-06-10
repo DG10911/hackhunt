@@ -22,6 +22,7 @@ import datetime as dt
 import os
 import re
 import smtplib
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -187,6 +188,7 @@ def run_reminders():
         subj = f"⏳ {len(due)} hackathon deadline{'s' if len(due) != 1 else ''} closing soon"
         if send_email(email, subj, _render(name, due)):
             sent += 1
+        time.sleep(0.6)  # stay under Resend's ~2 requests/sec rate limit
     print(f"[reminders] sent {sent} email(s)")
     return sent
 
@@ -227,6 +229,7 @@ def run_digest(events):
             continue
         if send_email(email, "🚀 Top hackathons this week on HackHunt", _render_digest(u.get("name") or "there", top)):
             sent += 1
+        time.sleep(0.6)  # stay under Resend's ~2 requests/sec rate limit
     print(f"[digest] sent {sent} email(s)")
     return sent
 

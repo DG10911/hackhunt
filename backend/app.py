@@ -1451,27 +1451,36 @@ def _email_scheduler():
     """Automatic email triggers — no external cron needed. Sends daily deadline
     reminders (~9 AM IST) and a weekly digest on Mondays. No-ops silently until
     SMTP env vars are set, so it's safe to run always."""
-    global _LAST_REMIND, _LAST_DIGEST
+    global _LAST_REMIND
     # Recover last-sent dates from the DB so a redeploy/restart never re-sends.
     try:
         _LAST_REMIND = db.get_setting("last_remind", "") or ""
-        _LAST_DIGEST = db.get_setting("last_digest", "") or ""
+        _dg_noon = db.get_setting("dg_noon", "") or ""
+        _dg_night = db.get_setting("dg_night", "") or ""
     except Exception:
-        pass
+        _dg_noon = _dg_night = ""
     while True:
         try:
             import emailer
-            now = time.gmtime()                 # server runs in UTC
+            now = time.gmtime()                  # server runs in UTC
             today = time.strftime("%Y-%m-%d", now)
-            after_9ist = now.tm_hour >= 4        # 9:30 AM IST ≈ 04:00 UTC
-            if after_9ist and today != _LAST_REMIND:
+            mins = now.tm_hour * 60 + now.tm_min  # minutes since UTC midnight
+            # Morning targeted deadline reminder — ~9:30 AM IST (04:00 UTC),
+            # only to users with saved events closing soon (low volume).
+            if mins >= 240 and today != _LAST_REMIND:
                 emailer.run_reminders()
                 _LAST_REMIND = today
                 db.set_setting("last_remind", today)
-            if now.tm_wday == 0 and after_9ist and today != _LAST_DIGEST:  # Monday
+            # Afternoon popularity digest to ALL users — ~1:00 PM IST (07:30 UTC).
+            if mins >= 450 and today != _dg_noon:
                 emailer.run_digest(_CACHE.get("data") or [])
-                _LAST_DIGEST = today
-                db.set_setting("last_digest", today)
+                _dg_noon = today
+                db.set_setting("dg_noon", today)
+            # Night popularity digest to ALL users — ~8:30 PM IST (15:00 UTC).
+            if mins >= 900 and today != _dg_night:
+                emailer.run_digest(_CACHE.get("data") or [])
+                _dg_night = today
+                db.set_setting("dg_night", today)
         except Exception as e:
             print("[email-sched] error:", e)
         time.sleep(1800)                         # check every 30 min
