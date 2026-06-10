@@ -114,5 +114,54 @@ def run_reminders():
     return sent
 
 
+def _render_digest(name, events):
+    rows = ""
+    for e in events:
+        dl = e.get("deadline") or e.get("starts") or "TBA"
+        d = _days_to(e.get("deadline") or e.get("starts"))
+        when = ("closes today" if d == 0 else
+                (f"closes in {d} day{'s' if d != 1 else ''}" if (d is not None and d > 0) else "open now"))
+        url = e.get("url") or e.get("ticket_url") or APP_URL
+        prize = (" · " + str(e.get("prize"))) if e.get("prize") else ""
+        rows += f"""<tr><td style="padding:11px 0;border-bottom:1px solid #eee">
+            <a href="{url}" style="color:#1a1530;font-weight:600;font-size:15px;text-decoration:none">{e.get('title','Event')}</a><br>
+            <span style="color:#666;font-size:13px">{e.get('organizer','')}{prize} · <b style="color:#7c5cff">{when}</b></span>
+          </td></tr>"""
+    return f"""<div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:auto">
+      <h2 style="color:#7c5cff;margin:0 0 4px">🚀 This week's top hackathons, {name.split(' ')[0]}</h2>
+      <p style="color:#444;margin:0 0 14px">Fresh opportunities on HackHunt — don't miss the deadlines:</p>
+      <table style="width:100%;border-collapse:collapse">{rows}</table>
+      <p style="margin:22px 0"><a href="{APP_URL}"
+        style="background:linear-gradient(90deg,#7c5cff,#19e3c7);color:#fff;padding:11px 20px;border-radius:8px;text-decoration:none">
+        See all on HackHunt</a></p>
+      <p style="color:#999;font-size:12px;margin-top:24px">You're getting this weekly digest because you joined HackHunt.
+        Open the app and tap your profile to manage preferences.</p>
+    </div>"""
+
+
+def run_digest(events):
+    """Weekly digest of the soonest-closing upcoming events to every user."""
+    if not events:
+        print("[digest] no events to send")
+        return 0
+    def _key(e):
+        d = _days_to(e.get("deadline") or e.get("starts"))
+        return d if (d is not None and d >= 0) else 9999
+    top = sorted(events, key=_key)[:10]
+    sent = 0
+    try:
+        users = db.all_users(3000)
+    except Exception:
+        users = []
+    for u in users:
+        email = (u.get("email") or "").strip()
+        if "@" not in email:
+            continue
+        if send_email(email, "🚀 Top hackathons this week — HackHunt", _render_digest(u.get("name") or "there", top)):
+            sent += 1
+    print(f"[digest] sent {sent} email(s)")
+    return sent
+
+
 if __name__ == "__main__":
     run_reminders()

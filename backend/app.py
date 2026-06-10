@@ -1006,6 +1006,19 @@ def run_reminders():
         return jsonify({"ok": False, "error": str(e)[:160]}), 200
 
 
+@app.route("/api/run-digest", methods=["POST"])
+def run_digest():
+    token = os.environ.get("REMINDER_TOKEN", "")
+    if token and request.args.get("token") != token:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    try:
+        import emailer
+        sent = emailer.run_digest(_CACHE.get("data") or [])
+        return jsonify({"ok": True, "sent": sent})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:160]}), 200
+
+
 # ---------- GitHub OAuth ----------
 GH_ID = os.environ.get("GITHUB_CLIENT_ID", "")
 GH_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
@@ -1368,6 +1381,32 @@ def _auto_refresher():
             print("[auto] community refresh error:", e)
 
 
+_LAST_REMIND = ""   # date-string guards so each job runs at most once per day
+_LAST_DIGEST = ""
+
+
+def _email_scheduler():
+    """Automatic email triggers — no external cron needed. Sends daily deadline
+    reminders (~9 AM IST) and a weekly digest on Mondays. No-ops silently until
+    SMTP env vars are set, so it's safe to run always."""
+    global _LAST_REMIND, _LAST_DIGEST
+    while True:
+        try:
+            import emailer
+            now = time.gmtime()                 # server runs in UTC
+            today = time.strftime("%Y-%m-%d", now)
+            after_9ist = now.tm_hour >= 4        # 9:30 AM IST ≈ 04:00 UTC
+            if after_9ist and today != _LAST_REMIND:
+                emailer.run_reminders()
+                _LAST_REMIND = today
+            if now.tm_wday == 0 and after_9ist and today != _LAST_DIGEST:  # Monday
+                emailer.run_digest(_CACHE.get("data") or [])
+                _LAST_DIGEST = today
+        except Exception as e:
+            print("[email-sched] error:", e)
+        time.sleep(1800)                         # check every 30 min
+
+
 def start_background():
     """Start cache warm + auto-refresh once (works under gunicorn AND `python app.py`)."""
     global _BG_STARTED
@@ -1378,6 +1417,7 @@ def start_background():
         threading.Thread(target=_do_refresh, daemon=True).start()
     threading.Thread(target=_refresh_community, daemon=True).start()
     threading.Thread(target=_auto_refresher, daemon=True).start()
+    threading.Thread(target=_email_scheduler, daemon=True).start()
 
 
 db.init()
