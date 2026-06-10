@@ -223,6 +223,9 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
 .result-head{max-width:var(--maxw);margin:22px auto 0;padding:0 clamp(14px,4vw,24px);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .result-head h2{font-size:1.15rem}.result-head .count{color:var(--muted);font-size:.85rem}
+.closing-bar{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;font-weight:700;
+  color:#ff8a3d;background:rgba(245,179,1,.12);border:1px solid rgba(245,179,1,.35);padding:5px 11px;border-radius:30px}
+.closing-bar:hover{background:rgba(245,179,1,.2)}.closing-bar svg{width:14px;height:14px}
 .rh-tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .select-wrap{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--brd);border-radius:11px;padding:0 12px;color:var(--muted)}
 .select-wrap .ic{width:15px;height:15px}
@@ -500,7 +503,8 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
 <div class="src-status" id="srcStatus"></div>
 
 <div class="result-head" id="resultHead">
-  <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h2 id="resultTitle">Hackathons</h2><span class="count" id="resultCount"></span></div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h2 id="resultTitle">Hackathons</h2><span class="count" id="resultCount"></span>
+    <span class="closing-bar" id="closingBar" style="display:none"></span></div>
   <div class="rh-tools">
     <button class="btn" id="surpriseBtn" title="Open a random event"><span data-i="sparkles"></span>Surprise me</button>
     <div class="select-wrap"><span data-i="filter"></span>
@@ -941,6 +945,32 @@ function showSources(meta){if(!meta){$("#srcStatus").innerHTML="";return;}
     return `<span><span class="dot" style="background:${c}"></span>${m.platform}: ${m.count}</span>`;}).join("");}
 
 // ===================== LOAD =====================
+// ---- retention nudges: "new since last visit" + "closing this week" ----
+function daysToDeadline(h){
+  const s=h.deadline||h.starts;if(!s)return null;
+  const m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/);if(!m)return null;
+  return Math.ceil((new Date(+m[1],+m[2]-1,+m[3]) - new Date())/864e5);
+}
+let _nudged=false;
+function retentionNudge(){
+  if(_nudged||!ALL||!ALL.length)return;_nudged=true;
+  let seen=[];try{seen=JSON.parse(localStorage.getItem("hh_seen")||"[]");}catch(e){}
+  const seenSet=new Set(seen), ids=ALL.map(h=>h.id);
+  const isReturn=!!localStorage.getItem("hh_lastvisit");
+  const newCount=isReturn?ids.filter(id=>!seenSet.has(id)).length:0;
+  const closing=ALL.filter(h=>{const d=daysToDeadline(h);return d!==null&&d>=0&&d<=7;}).length;
+  try{localStorage.setItem("hh_seen",JSON.stringify(ids.slice(0,800)));
+      localStorage.setItem("hh_lastvisit",String(Date.now()));}catch(e){}
+  // persistent "closing this week" hook in the result bar
+  const cb=$("#closingBar");
+  if(cb){if(closing>=1){cb.innerHTML=`${svg("clock")}<b>${closing}</b>&nbsp;closing this week`;cb.style.display="inline-flex";
+      cb.onclick=()=>{activeQuick="Soon";buildChips();render();window.scrollTo({top:$("#grid").offsetTop-90,behavior:"smooth"});};}
+    else cb.style.display="none";}
+  setTimeout(()=>{
+    if(newCount>=1)toast(`${newCount} new ${newCount>1?"opportunities":"opportunity"} since your last visit`,'sparkles');
+    else if(closing>=1)toast(`${closing} ${closing>1?"events":"event"} closing this week — don't miss out`,'clock');
+  },1400);
+}
 async function load(refresh){
   // 1) instant paint from localStorage cache (stale-while-revalidate)
   let painted=false;
@@ -962,6 +992,7 @@ async function load(refresh){
     else toast("Showing cached data",'refresh');}
   updateStats();if(activeTab==="hackathons"){buildChips();render();}
   if(typeof hidePreloader==="function")hidePreloader();   // hide as soon as content is painted
+  retentionNudge();
 }
 async function loadCommunity(){skeletons(6);
   try{const r=await fetch(API_COMMUNITY,{cache:"no-store"});if(!r.ok)throw 0;COMMUNITY=(await r.json()).events||[];}
