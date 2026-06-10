@@ -1004,6 +1004,31 @@ def run_reminders():
     return jsonify({"ok": True, "started": True, "note": "reminders sending in background"})
 
 
+@app.route("/api/email-test", methods=["POST", "GET"])
+def email_test():
+    """Send ONE test email to ?to=address — isolates whether Resend works,
+    independent of the user database. Returns ok:true/false synchronously."""
+    token = os.environ.get("REMINDER_TOKEN", "")
+    if token and request.args.get("token") != token:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    to = (request.args.get("to") or "").strip()
+    if "@" not in to:
+        return jsonify({"ok": False, "error": "add ?to=your@email.com"}), 200
+    try:
+        import emailer
+        ok = emailer.send_email(
+            to, "HackHunt test email",
+            "<div style='font-family:Inter,Arial,sans-serif'><h2 style='color:#7c5cff'>It works! 🎉</h2>"
+            "<p>Your HackHunt email system is set up correctly. Deadline reminders and the "
+            "weekly digest will now reach students automatically.</p></div>")
+        return jsonify({"ok": ok, "to": to,
+                        "users_in_db": len(db.all_users(5000)),
+                        "from": emailer.RESEND_FROM if emailer.RESEND_API_KEY else "SMTP",
+                        "resend": bool(emailer.RESEND_API_KEY)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]}), 200
+
+
 @app.route("/api/run-digest", methods=["POST"])
 def run_digest():
     token = os.environ.get("REMINDER_TOKEN", "")
