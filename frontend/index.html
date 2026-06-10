@@ -139,6 +139,19 @@ header{position:sticky;top:0;z-index:60;backdrop-filter:blur(20px);
   font-size:.8rem;font-weight:700;color:#ff8a3d;background:rgba(245,179,1,.12);border:1px solid rgba(245,179,1,.35);flex:none}
 .streak-pill svg{flex:none}
 @media(max-width:560px){.jstats{grid-template-columns:repeat(2,1fr);gap:8px}.jstat b{font-size:1.4rem}.streak-pill .sp-txt{display:none}}
+/* ---------- full-screen preloader ---------- */
+#preloader{position:fixed;inset:0;z-index:9999;background:radial-gradient(900px 500px at 50% 30%,rgba(124,92,255,.16),transparent),var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .5s ease,visibility .5s}
+#preloader.hide{opacity:0;visibility:hidden;pointer-events:none}
+.pl-brand{font-family:Sora,sans-serif;font-weight:800;font-size:1.8rem;letter-spacing:.3px}
+.pl-sub{color:var(--muted);font-size:.82rem;letter-spacing:.3px}
+.loader{width:80px;height:50px;position:relative}
+.loader-text{position:absolute;top:0;padding:0;margin:0;color:#C8B6FF;animation:text_713 3.5s ease both infinite;font-size:.8rem;letter-spacing:1px}
+.load{background-color:#9A79FF;border-radius:50px;display:block;height:16px;width:16px;bottom:0;position:absolute;transform:translateX(64px);animation:loading_713 3.5s ease both infinite}
+.load::before{position:absolute;content:"";width:100%;height:100%;background-color:#D1C2FF;border-radius:inherit;animation:loading2_713 3.5s ease both infinite}
+@keyframes text_713{0%{letter-spacing:1px;transform:translateX(0)}40%{letter-spacing:2px;transform:translateX(26px)}80%{letter-spacing:1px;transform:translateX(32px)}90%{letter-spacing:2px;transform:translateX(0)}100%{letter-spacing:1px;transform:translateX(0)}}
+@keyframes loading_713{0%{width:16px;transform:translateX(0)}40%{width:100%;transform:translateX(0)}80%{width:16px;transform:translateX(64px)}90%{width:100%;transform:translateX(0)}100%{width:16px;transform:translateX(0)}}
+@keyframes loading2_713{0%{transform:translateX(0);width:16px}40%{transform:translateX(0%);width:80%}80%{width:100%;transform:translateX(0)}90%{width:80%;transform:translateX(15px)}100%{transform:translateX(0);width:16px}}
 .sample-flag.featured{background:linear-gradient(90deg,#f5b301,#ff8a3d);color:#241400}
 .card.is-featured{border-color:rgba(245,179,1,.55);box-shadow:0 0 0 1px rgba(245,179,1,.35),0 14px 36px rgba(245,179,1,.12)}
 .search-clear{background:var(--surface-2);border:1px solid var(--brd);color:var(--muted);
@@ -414,6 +427,11 @@ footer{padding-bottom:max(30px,calc(env(safe-area-inset-bottom) + 16px))}
 </style>
 </head>
 <body>
+<div id="preloader">
+  <div class="pl-brand">Hack<span class="grad">Hunt</span></div>
+  <div class="loader"><span class="loader-text">loading</span><span class="load"></span></div>
+  <div class="pl-sub">finding India's best hackathons…</div>
+</div>
 <!--SEO_INJECT--><div class="aurora"><span></span><span></span><span></span></div>
 <div class="grid-bg"></div>
 
@@ -1329,7 +1347,10 @@ $("#themeBtn").innerHTML=svg(document.documentElement.dataset.theme==="light"?"s
 
 renderAuthState();
 buildChips();
-load(true);   // always pull fresh on open (paints cache instantly first)
+// hide the branded preloader once the first content paints (with a safety cap)
+function hidePreloader(){const p=document.getElementById("preloader");if(p&&!p.classList.contains("hide")){p.classList.add("hide");setTimeout(()=>p.remove(),600);}}
+load(true).finally(()=>setTimeout(hidePreloader,250));   // fresh on open (cache paints instantly first)
+setTimeout(hidePreloader,4000);   // never let the loader stick
 if(!USER){setMode("signup");showGate();}
 </script>
 </body>
