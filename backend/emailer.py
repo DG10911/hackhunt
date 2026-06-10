@@ -61,7 +61,9 @@ def _send_resend(to, subject, html):
                        "html": html}).encode("utf-8")
     req = urllib.request.Request("https://api.resend.com/emails", data=body, method="POST",
                                  headers={"Authorization": "Bearer " + RESEND_API_KEY,
-                                          "Content-Type": "application/json"})
+                                          "Content-Type": "application/json",
+                                          "User-Agent": "HackHunt/1.0 (+https://hackhunt.xyz)",
+                                          "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
             r.read()

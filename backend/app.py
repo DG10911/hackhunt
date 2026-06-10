@@ -1027,7 +1027,9 @@ def email_test():
                                 "system is set up correctly.</p></div>"}).encode("utf-8")
     req = urllib.request.Request("https://api.resend.com/emails", data=payload, method="POST",
                                  headers={"Authorization": "Bearer " + emailer.RESEND_API_KEY,
-                                          "Content-Type": "application/json"})
+                                          "Content-Type": "application/json",
+                                          "User-Agent": "HackHunt/1.0 (+https://hackhunt.xyz)",
+                                          "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
             resp = r.read().decode("utf-8", "ignore")
