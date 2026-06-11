@@ -7,6 +7,17 @@ these as "Verified · confirm dates on site". No fictional events.
 """
 
 SAMPLE = [
+    # ---- FEATURED (June 2026) — biggest live event, pinned to top of feed ----
+    {"id": "s-india-runs", "title": "India Runs by RedRob AI", "organizer": "RedRob AI · Hack2skill",
+     "platform": "Hack2skill",
+     "url": "https://hack2skill.com/event/india_runs?utm_source=hack2skill&utm_medium=teamdashboard&utm_campaign=india_runs&utm_term=referral-1&utm_content=6976ef22c297ec950b361a36",
+     "ticket_url": "https://hack2skill.com/event/india_runs/registration",
+     "mode": "Online", "location": "India (Nationwide · Online)", "starts": "2026-06-10", "ends": "2026-07-22",
+     "deadline": "2026-07-15", "prize": "₹50 Lakh+ Prize Pool",
+     "tags": ["AI", "Data", "Ideathon", "Open Innovation", "Student"],
+     "category": "Hackathon", "image": None, "participants": 50000,
+     "verified": True, "dates_confirmed": False, "featured": True},
+
     # Recurring govt/flagship events whose NEXT edition is upcoming (dates approx,
     # flagged "confirm on site"). Verified still active annually as of June 2026.
     {"id": "s-sih", "title": "Smart India Hackathon 2026", "organizer": "Govt of India · Ministry of Education",

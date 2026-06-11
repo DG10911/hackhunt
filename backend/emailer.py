@@ -234,5 +234,57 @@ def run_digest(events):
     return sent
 
 
+INDIA_RUNS_URL = ("https://hack2skill.com/event/india_runs?utm_source=hack2skill&utm_medium="
+                  "teamdashboard&utm_campaign=india_runs&utm_term=referral-1&utm_content="
+                  "6976ef22c297ec950b361a36")
+
+
+def _render_announcement(name):
+    first = (name or "there").split(" ")[0]
+    pills = (_pill("₹50 Lakh+ Prize Pool", "#2a240f", "#ffe08a")
+             + _pill("100% Free to enter", "#0f3a2a", "#7cffc0")
+             + _pill("Grand Finale 22 Jul", "#3a2a0f", "#ffce8a")
+             + _pill("Open to all India", "#1c2433", "#9fc0ff"))
+    card = (
+        '<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 16px">'
+        '<tr><td style="background:#191926;border:1px solid #2a2a40;border-radius:14px;padding:20px 18px 16px">'
+        '<div style="font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#19e3c7;'
+        'margin:0 0 6px">⚡ Biggest live hackathon in India</div>'
+        '<div style="font-size:21px;font-weight:800;color:#ffffff;line-height:1.25">India Runs by RedRob AI</div>'
+        '<div style="font-size:13px;color:#9aa0bb;margin:5px 0 14px">RedRob AI · Hack2skill &nbsp;·&nbsp; '
+        '“Build what next India runs on”</div>'
+        f'<div>{pills}</div>'
+        '<div style="font-size:14px;color:#cfd3e6;line-height:1.7;margin:8px 0 4px">'
+        'A 42-day national challenge across <b style="color:#fff">3 tracks</b> — Data &amp; AI, '
+        'Ideathon, and a Social Media Challenge. Open to students, developers, designers, MBAs &amp; '
+        'first-timers. Solo or teams up to 4.</div>'
+        f'<a href="{INDIA_RUNS_URL}" style="display:inline-block;margin-top:16px;background:#5b3df5;'
+        'color:#ffffff;font-weight:800;font-size:15px;text-decoration:none;padding:13px 28px;border-radius:11px">'
+        'Register free now &rarr;</a></td></tr></table>')
+    return _shell(f"{first}, India's biggest hackathon just dropped \U0001f680",
+                  "We've featured it at the top of HackHunt — a ₹50 Lakh+ prize pool, free to enter, "
+                  "and open to everyone. Don't sit this one out:",
+                  card, "Open HackHunt")
+
+
+def run_announcement():
+    """One-off blast to ALL users about the featured India Runs event."""
+    sent = 0
+    try:
+        users = db.all_users(5000)
+    except Exception:
+        users = []
+    for u in users:
+        email = (u.get("email") or "").strip()
+        if "@" not in email:
+            continue
+        if send_email(email, "🚀 India Runs by RedRob AI — ₹50 Lakh+ prize, now live on HackHunt",
+                      _render_announcement(u.get("name") or "there")):
+            sent += 1
+        time.sleep(0.6)  # stay under Resend's ~2 req/sec rate limit
+    print(f"[announce] sent {sent} email(s)")
+    return sent
+
+
 if __name__ == "__main__":
     run_reminders()

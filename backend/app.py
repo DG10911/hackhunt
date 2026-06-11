@@ -1040,6 +1040,9 @@ def email_test():
                    and 0 <= emailer._days_to(e.get("deadline") or e.get("starts")) <= 14)][:6]
         subject = f"⏳ {len(due)} hackathon deadline{'s' if len(due) != 1 else ''} closing soon"
         html = emailer._render(name, due or evs[:4])
+    elif fmt == "announce":
+        subject = "🚀 India Runs by RedRob AI — ₹50 Lakh+ prize, now live on HackHunt"
+        html = emailer._render_announcement(name)
     else:
         subject = "HackHunt test email"
         html = ("<div style='font-family:Inter,Arial,sans-serif'>"
@@ -1072,6 +1075,17 @@ def run_digest():
     data = list(_CACHE.get("data") or [])
     threading.Thread(target=lambda: emailer.run_digest(data), daemon=True).start()
     return jsonify({"ok": True, "started": True, "note": "digest sending in background"})
+
+
+@app.route("/api/announce", methods=["POST"])
+def announce():
+    """One-off blast to ALL users about the featured India Runs event."""
+    token = os.environ.get("REMINDER_TOKEN", "")
+    if token and request.args.get("token") != token:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    import emailer
+    threading.Thread(target=emailer.run_announcement, daemon=True).start()
+    return jsonify({"ok": True, "started": True, "note": "India Runs announcement sending in background"})
 
 
 # ---------- GitHub OAuth ----------
